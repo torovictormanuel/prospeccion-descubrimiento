@@ -1,0 +1,499 @@
+{
+  "name": "01 Investigador + cola diaria LinkedIn",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "30 8 * * 1-5"
+            }
+          ]
+        }
+      },
+      "id": "85192726-edfe-4afe-bdf1-1c32a4a1fee6",
+      "name": "Lunes a viernes 8:30",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a299858b-76ff-4f0a-b81a-3284a2f5b5ac",
+              "name": "sheetId",
+              "value": "PEGAR_ID_DEL_GOOGLE_SHEET",
+              "type": "string"
+            },
+            {
+              "id": "30f15aa5-d6ea-47cb-b293-7cf3a86b9631",
+              "name": "miEmail",
+              "value": "TU_EMAIL@gmail.com",
+              "type": "string"
+            },
+            {
+              "id": "ed8349d5-3a0a-4f68-b2d2-0eb41d204ec6",
+              "name": "waNumero",
+              "value": "549XXXXXXXXXX",
+              "type": "string"
+            },
+            {
+              "id": "51b42616-3038-4165-a863-b1dd762404e5",
+              "name": "calLink",
+              "value": "https://cal.com/TU_USUARIO/descubrimiento-20min",
+              "type": "string"
+            },
+            {
+              "id": "8639173e-49d4-40c3-8aef-0858c9e934e2",
+              "name": "formUrl",
+              "value": "https://TU-FORM.vercel.app",
+              "type": "string"
+            },
+            {
+              "id": "5e564e68-2952-40c9-9f1b-bc226e0c93bd",
+              "name": "geminiModelo",
+              "value": "gemini-2.5-flash",
+              "type": "string"
+            },
+            {
+              "id": "2dc9bcae-d5b4-4dbb-b875-77a65393987c",
+              "name": "leadsPorDia",
+              "value": 12,
+              "type": "number"
+            },
+            {
+              "id": "39ae15e7-5966-45a7-86c6-3f2152252ae6",
+              "name": "tokenAcciones",
+              "value": "PEGAR_TOKEN_LARGO_ALEATORIO",
+              "type": "string"
+            },
+            {
+              "id": "8d5f833a-e26e-4fa1-81c5-bb0ef5641efb",
+              "name": "n8nUrl",
+              "value": "http://localhost:5678",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "fc2fb23c-db64-4f67-bd3f-10955b10b6a1",
+      "name": "Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        480,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('Config').first().json.sheetId }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Pipeline",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "b146a1c8-2d0a-45a7-9795-0e209dec8bbd",
+      "name": "Leer pipeline",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        720,
+        300
+      ],
+      "executeOnce": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const TZ = 'America/Argentina/Buenos_Aires';\n\n// Elige los leads a investigar hoy: Activos, sin mensajes todavía y con perfil personal de LinkedIn.\nconst cfg = $('Config').first().json;\nconst peso = { Alta: 0, Media: 1 };  // Baja queda afuera a propósito\nconst filas = $input.all().map(i => i.json).filter(f => f.ID !== undefined && f.ID !== '');\nconst elegidos = filas.filter(f =>\n  String(f['Secuencia'] || '').trim() === 'Activa' &&\n  String(f['No contactar'] || '').toUpperCase() !== 'SI' &&\n  ['1. Prospecto', '2. Contactado'].includes(f['Etapa']) &&\n  Number(f['Paso LinkedIn'] || 0) === 0 &&\n  !String(f['Mensaje 1'] || '').trim() &&\n  /linkedin\\.com\\/in\\//i.test(String(f['LinkedIn / Web'] || '')) &&\n  f['Prioridad'] in peso\n).sort((a, b) => peso[a['Prioridad']] - peso[b['Prioridad']] || Number(a.ID) - Number(b.ID))\n .slice(0, Number(cfg.leadsPorDia) || 12);\n\n// Sin leads nuevos igual hay que pasar por el loop para que salga el mail con los seguimientos\nif (!elegidos.length) return [{ json: { vacio: true } }];\nreturn elegidos.map(f => {\n  const esEstudio = String(f['Segmento']).startsWith('Estudio');\n  const rubro = esEstudio ? 'estudio contable' : 'vendedor/tienda de Mercado Libre';\n  const prompt = `Sos un investigador de prospectos B2B en Argentina. Buscá en Google información PÚBLICA y verificable sobre este ${rubro}:\n- Empresa: ${f['Empresa']}\n- Ubicación: ${f['Ubicación'] || 'Argentina'}\n- Persona: ${f['Contacto'] || '(sin nombre)'} — ${f['Cargo'] || ''}\nNo inventes datos. No uses información privada de LinkedIn.\n\nContexto: Victor Toro es analista de datos y está ESTUDIANDO cómo mejorar los procesos internos de ${esEstudio ? 'los estudios contables de 10 a 50 personas' : 'los vendedores de Mercado Libre'} (qué tareas se repiten, dónde se va el tiempo). NO vende nada: quiere entender el problema antes de proponer soluciones. Para no quitarle tiempo, le pide completar un form de 4 minutos; a cambio ofrece el informe con los resultados de todos y un diagnóstico para su estudio.\n\nDevolvé SOLO un objeto JSON, sin texto extra, con estas claves:\n\"dato\": una frase con un dato real y específico de la empresa (servicios, especialidad, tipo de clientes, antigüedad, novedad). Si no encontrás nada verificable, \"\".\n\"fuente\": URL de donde sacaste el dato, o \"\".\n\"conexion\": nota de solicitud de conexión de LinkedIn, máximo 250 caracteres, sin pitch, que mencione el dato si existe.\n\"mensaje1\": mensaje tras aceptar, máximo 700 caracteres, muy amable. Se presenta como Victor, explica que está estudiando cómo mejorar los procesos internos de los estudios, aclara que no vende nada, pide que complete el form de 4 minutos y ofrece a cambio el informe con los resultados de todos y un diagnóstico para su estudio. Incluí LITERALMENTE el marcador {LINK_FORM} (el form) y, como alternativa si prefiere charlar directo, {LINK_AGENDA}.\n\"mensaje2\": seguimiento de máximo 300 caracteres: recordá el form con {LINK_FORM} y, si no tiene ni 4 minutos, hacé UNA sola pregunta que pueda contestar ahí: cuál es la tarea que más tiempo le saca al equipo cada mes.\n\"cierre\": cierre amable de máximo 250 caracteres, sin insistir, ofreciendo el informe cuando esté listo.\nEspañol rioplatense, con \"vos\", tono cercano y profesional. Tuteá usando su nombre de pila si lo tenés.`;\n  return { json: {\n    ID: f.ID, empresa: f['Empresa'], contacto: f['Contacto'] || '', esEstudio,\n    geminiBody: { contents: [{ role: 'user', parts: [{ text: prompt }] }], tools: [{ google_search: {} }],\n                  generationConfig: { temperature: 0.5 } },\n  } };\n});\n"
+      },
+      "id": "3f962d74-0a17-4748-a91d-c83b2a2d187d",
+      "name": "Elegir leads del día",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "1e3f812d-1691-465d-b307-b6e43695ded2",
+      "name": "Uno por uno",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "3e22eb0f-d3ca-40a1-b80d-80f730233cab",
+              "leftValue": "={{ $json.vacio }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "notTrue",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "444fac94-a7e7-48c8-bf88-c9b54c408074",
+      "name": "¿Hay lead?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1440,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://generativelanguage.googleapis.com/v1beta/models/{{ $('Config').first().json.geminiModelo }}:generateContent",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.geminiBody) }}",
+        "options": {
+          "timeout": 90000
+        }
+      },
+      "id": "310f34cf-3d2a-4035-b416-a815c06b398d",
+      "name": "Gemini investiga",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1680,
+        160
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const TZ = 'America/Argentina/Buenos_Aires';\n\n// Convierte la respuesta de Gemini en los textos finales, con los links reales.\n// Si Gemini falló o devolvió algo raro, se usan plantillas por defecto.\nconst cfg = $('Config').first().json;\nconst lead = $('Uno por uno').item.json;\nconst id = String(lead.ID);\nconst hoy = $now.setZone(TZ).toFormat('yyyy-MM-dd');\nconst waLink = `https://wa.me/${cfg.waNumero}?text=${encodeURIComponent(`Hola Victor, vengo de LinkedIn (ref ${id})`)}`;\nconst agendaLink = `${cfg.calLink}?metadata[ref]=${id}&notes=${encodeURIComponent('ref ' + id)}`;\n// Código aleatorio para el link del form: identifica al lead sin exponer su ID ni datos personales\nconst ABC = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';\nconst codigo = Array.from({ length: 8 }, () => ABC[Math.floor(Math.random() * ABC.length)]).join('');\nconst formLink = `${String(cfg.formUrl).replace(/\\/$/, '')}/?c=${codigo}&f=linkedin`;\n\nlet r = {};\ntry {\n  const texto = ($json.candidates?.[0]?.content?.parts || []).map(p => p.text || '').join('');\n  r = JSON.parse(texto.slice(texto.indexOf('{'), texto.lastIndexOf('}') + 1));\n} catch (e) { r = {}; }\n\nconst nombre = String(lead.contacto || '').split(' ')[0];\nconst hola = nombre ? `Hola ${nombre}` : 'Hola';\nconst rubro = lead.esEstudio ? 'los estudios contables de 10 a 50 personas' : 'los vendedores de Mercado Libre';\nconst def = {\n  conexion: `${hola}, estoy estudiando cómo mejorar los procesos internos de ${rubro} en Argentina y me gustaría sumarte a mi red.`,\n  mensaje1: `${hola}, ¡gracias por conectar! Soy Victor Toro, analista de datos. Estoy estudiando cómo mejorar los procesos internos de ${rubro}: qué tareas se repiten todos los meses y dónde se va el tiempo del equipo. No vendo nada: quiero entender bien el problema antes de proponer soluciones.\\n\\nPara no quitarte tiempo armé un form de 4 minutos: {LINK_FORM}\\n\\nA cambio te mando el informe con los resultados de todos los estudios y, si querés, un diagnóstico con ideas para el tuyo. Si preferís charlarlo directo, 20 min: {LINK_AGENDA}`,\n  mensaje2: `${hola}, ¿pudiste ver el form? ({LINK_FORM}) Si no tenés ni 4 minutos, me sirve igual que me contestes solo esto: ¿cuál es la tarea que más tiempo le saca a tu equipo cada mes?`,\n  cierre: `${hola}, no te escribo más sobre esto. Si en algún momento querés contarme cómo trabajan o recibir el informe cuando esté listo, respondeme por acá. ¡Gracias!`,\n};\nconst reemplazar = s => String(s).split('{LINK_FORM}').join(formLink).split('{LINK_AGENDA}').join(agendaLink).split('{LINK_WHATSAPP}').join(waLink);\nconst txt = k => reemplazar(String(r[k] || '').trim() || def[k]);\nlet m1 = txt('mensaje1');\nif (!m1.includes(formLink)) m1 = reemplazar(def.mensaje1);  // el link del form es obligatorio\n\nreturn { json: {\n  'ID': lead.ID,\n  'Dato investigado': r.dato ? `${r.dato}${r.fuente ? ' (' + r.fuente + ')' : ''}` : ($json.error ? 'Gemini no respondió: revisar a mano' : ''),\n  'Mensaje conexión': txt('conexion').slice(0, 295),\n  'Mensaje 1': m1,\n  'Mensaje 2': txt('mensaje2'),\n  'Mensaje cierre': txt('cierre'),\n  'Link WhatsApp': waLink,\n  'Link agenda': agendaLink,\n  'Código': codigo,\n  'Link form': formLink,\n  'Próxima acción': 'Enviar solicitud de conexión en LinkedIn',\n  'Fecha próx. acción': hoy,\n} };\n",
+        "mode": "runOnceForEachItem"
+      },
+      "id": "db9561fd-64c7-44d7-937d-db5c53879f3a",
+      "name": "Armar mensajes",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1920,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('Config').first().json.sheetId }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Pipeline",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "ID"
+          ],
+          "schema": []
+        },
+        "options": {
+          "cellFormat": "USER_ENTERED"
+        }
+      },
+      "id": "216eba09-0ff8-4329-ae07-b3efc1052739",
+      "name": "Guardar mensajes",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        2160,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 5,
+        "unit": "seconds"
+      },
+      "id": "01f0515a-3fd8-403b-973e-1bc29a1dfe26",
+      "name": "Pausa (límite Gemini gratis)",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2400,
+        160
+      ],
+      "webhookId": "fb481869-4cff-4f43-8bd3-44576698f280"
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('Config').first().json.sheetId }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Pipeline",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "da58e248-fb90-4f54-9062-edb4c1dc3095",
+      "name": "Leer pipeline actualizado",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1680,
+        440
+      ],
+      "executeOnce": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const TZ = 'America/Argentina/Buenos_Aires';\n\n// Las fechas de la planilla pueden venir como 28/10/2026, 2026-10-28 o número de serie\nconst parseFecha = v => {\n  if (v === undefined || v === null || v === '') return null;\n  const s = String(v).trim();\n  let m = s.match(/^(\\d{1,2})\\/(\\d{1,2})\\/(\\d{4})/);\n  if (m) return DateTime.fromObject({ year: +m[3], month: +m[2], day: +m[1] }, { zone: TZ });\n  m = s.match(/^(\\d{4})-(\\d{2})-(\\d{2})/);\n  if (m) return DateTime.fromObject({ year: +m[1], month: +m[2], day: +m[3] }, { zone: TZ });\n  if (/^\\d+(\\.\\d+)?$/.test(s)) return DateTime.fromObject({ year: 1899, month: 12, day: 30 }, { zone: TZ }).plus({ days: Math.floor(+s) });\n  return null;\n};\nconst esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\\n/g, '<br>');\n// '3. Conversación' → 3. '10. Nutrir' cuenta como 0 para poder reactivar el lead.\nconst numEtapa = e => { const n = parseInt(String(e || '0'), 10) || 0; return n === 10 ? 0 : n; };\n\n// Arma el mail con las tareas de LinkedIn de hoy. Cada tarea trae el mensaje listo\n// y botones que actualizan la planilla (workflow 04).\nconst cfg = $('Config').first().json;\nconst hoy = $now.setZone(TZ).startOf('day');\nconst filas = $input.all().map(i => i.json).filter(f => f.ID !== undefined && f.ID !== '');\nconst vence = f => { const d = parseFecha(f['Fecha próx. acción']); return !d || d <= hoy; };\nconst url = (f, accion, paso = '') =>\n  `${cfg.n8nUrl}/webhook/pipeline-accion?id=${encodeURIComponent(f.ID)}&accion=${accion}&paso=${paso}&t=${encodeURIComponent(cfg.tokenAcciones)}`;\nconst btn = (href, texto, color) =>\n  `<a href=\"${href}\" style=\"display:inline-block;margin:4px 6px 0 0;padding:6px 12px;border-radius:6px;background:${color};color:#fff;text-decoration:none;font-size:13px\">${texto}</a>`;\n\nconst PASOS = {\n  0: { col: 'Mensaje conexión', titulo: '1 · Enviá la solicitud de conexión', sig: 1 },\n  1: { col: 'Mensaje 1', titulo: '2 · Si aceptó, mandá el Mensaje 1', sig: 2 },\n  2: { col: 'Mensaje 2', titulo: '3 · Seguimiento con una sola pregunta', sig: 3 },\n  3: { col: 'Mensaje cierre', titulo: '4 · Mensaje de cierre', sig: 4 },\n};\nconst activos = filas.filter(f =>\n  String(f['Secuencia'] || '') === 'Activa' && String(f['No contactar'] || '').toUpperCase() !== 'SI' &&\n  ['1. Prospecto', '2. Contactado'].includes(f['Etapa']) && String(f['Mensaje 1'] || '').trim());\n\nlet html = `<div style=\"font-family:Arial,sans-serif;max-width:680px\">`;\nlet total = 0;\nfor (const [paso, p] of Object.entries(PASOS)) {\n  const lista = activos.filter(f => Number(f['Paso LinkedIn'] || 0) === Number(paso) && vence(f));\n  if (!lista.length) continue;\n  total += lista.length;\n  html += `<h3 style=\"margin:24px 0 8px\">${p.titulo} (${lista.length})</h3>`;\n  for (const f of lista) {\n    html += `<div style=\"border:1px solid #ddd;border-radius:8px;padding:12px;margin-bottom:10px\">\n      <b>${esc(f['Empresa'])}</b> — ${esc(f['Contacto'])} <span style=\"color:#666\">${esc(f['Cargo'])}</span><br>\n      <a href=\"${esc(f['LinkedIn / Web'])}\">Abrir perfil de LinkedIn</a>\n      ${f['Dato investigado'] ? `<div style=\"color:#555;font-size:12px;margin-top:4px\">🔎 ${esc(f['Dato investigado'])}</div>` : ''}\n      <div style=\"background:#f6f8fa;border-radius:6px;padding:10px;margin-top:8px;font-size:14px\">${esc(f[p.col])}</div>\n      ${btn(url(f, 'enviado', p.sig), '✅ Enviado', '#2e7d32')}\n      ${Number(paso) === 1 ? btn(url(f, 'esperar'), '⏳ Todavía no aceptó', '#757575') : ''}\n      ${Number(paso) > 0 ? btn(url(f, 'respondio'), '💬 Respondió', '#1565c0') : ''}\n      ${btn(url(f, 'descartar'), '✖ Descartar', '#c62828')}\n    </div>`;\n  }\n}\n\n// Leads que necesitan que respondas vos (escalados por el agente o que contestaron en LinkedIn)\nconst tuyos = filas.filter(f => /^Responder/i.test(String(f['Próxima acción'] || '')) && vence(f) && !String(f['Etapa']).startsWith('9.'));\nif (tuyos.length) {\n  html += `<h3 style=\"margin:24px 0 8px\">💬 Te toca responder (${tuyos.length})</h3><ul>`;\n  for (const f of tuyos) html += `<li><b>${esc(f['Empresa'])}</b> — ${esc(f['Próxima acción'])}${f['WhatsApp'] ? ` · <a href=\"https://wa.me/${String(f['WhatsApp']).replace(/\\D/g, '')}\">WhatsApp</a>` : ''}</li>`;\n  html += `</ul>`;\n}\n\n// Leads Activos sin perfil personal: hay que buscar al decisor a mano\nconst sinPerfil = filas.filter(f => String(f['Secuencia']) === 'Activa' && ['Alta', 'Media'].includes(f['Prioridad']) &&\n  String(f['Etapa']) === '1. Prospecto' && !/linkedin\\.com\\/in\\//i.test(String(f['LinkedIn / Web'] || ''))).slice(0, 5);\nif (sinPerfil.length) {\n  html += `<h3 style=\"margin:24px 0 8px\">🔍 Buscá al socio o dueño (5 de ${filas.filter(f => String(f['Secuencia']) === 'Activa' && !/linkedin\\.com\\/in\\//i.test(String(f['LinkedIn / Web'] || ''))).length})</h3>\n    <p style=\"font-size:13px;color:#555\">Pegá su perfil en la columna \"LinkedIn / Web\" y su nombre en \"Contacto\". Mañana el investigador le arma los mensajes.</p><ul>`;\n  for (const f of sinPerfil) html += `<li>${esc(f['Empresa'])} — ${esc(f['Ubicación'])}${f['LinkedIn / Web'] ? ` · <a href=\"${esc(f['LinkedIn / Web'])}\">página actual</a>` : ''}</li>`;\n  html += `</ul>`;\n}\nhtml += `<p style=\"color:#888;font-size:12px;margin-top:24px\">Los botones funcionan en la PC donde corre n8n. Si cerraste n8n, actualizá la planilla a mano.</p></div>`;\n\nif (!total && !tuyos.length && !sinPerfil.length) return [];\nreturn [{ json: { asunto: `Prospección de hoy: ${total} mensajes de LinkedIn${tuyos.length ? ` + ${tuyos.length} para responder` : ''}`, html } }];\n"
+      },
+      "id": "b3d9d106-aa10-452f-8c6a-00c3b56067c7",
+      "name": "Armar cola del día",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1920,
+        440
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Config').first().json.miEmail }}",
+        "subject": "={{ $json.asunto }}",
+        "emailType": "html",
+        "message": "={{ $json.html }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "9cd3f18a-4a76-4d53-9302-3f68d1067870",
+      "name": "Mandar cola por mail",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        2160,
+        440
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 01 · Agente investigador + cola diaria\n1. Completá el nodo **Config** (ID del Sheet, tu email, número de WhatsApp del agente, link de Cal.com, token).\n2. Credenciales: Google Sheets OAuth2, Gmail OAuth2 y una **Header Auth** para Gemini con nombre `x-goog-api-key` y tu API key de Google AI Studio (gratis).\n3. Si Gemini da error 404 o 429, cambiá `geminiModelo` por el modelo gratis vigente en ai.google.dev.\n4. Activá el workflow. Corre de lunes a viernes a las 8:30.",
+        "height": 420,
+        "width": 520
+      },
+      "id": "018ef1d4-eb40-4e2b-8dd2-91498b34ea35",
+      "name": "Nota",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        -220
+      ]
+    }
+  ],
+  "connections": {
+    "Lunes a viernes 8:30": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Leer pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Leer pipeline": {
+      "main": [
+        [
+          {
+            "node": "Elegir leads del día",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Elegir leads del día": {
+      "main": [
+        [
+          {
+            "node": "Uno por uno",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Uno por uno": {
+      "main": [
+        [
+          {
+            "node": "Leer pipeline actualizado",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "¿Hay lead?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Hay lead?": {
+      "main": [
+        [
+          {
+            "node": "Gemini investiga",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Uno por uno",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini investiga": {
+      "main": [
+        [
+          {
+            "node": "Armar mensajes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Armar mensajes": {
+      "main": [
+        [
+          {
+            "node": "Guardar mensajes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guardar mensajes": {
+      "main": [
+        [
+          {
+            "node": "Pausa (límite Gemini gratis)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pausa (límite Gemini gratis)": {
+      "main": [
+        [
+          {
+            "node": "Uno por uno",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Leer pipeline actualizado": {
+      "main": [
+        [
+          {
+            "node": "Armar cola del día",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Armar cola del día": {
+      "main": [
+        [
+          {
+            "node": "Mandar cola por mail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Argentina/Buenos_Aires"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}

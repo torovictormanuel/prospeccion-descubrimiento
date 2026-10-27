@@ -1,0 +1,12 @@
+{
+  "name": "form-descubrimiento",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Form de descubrimiento para estudios contables (Vercel + Supabase)",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "dev": "node dev-server.js",
+    "test": "node --test tests/validar.test.js"
+  }
+}

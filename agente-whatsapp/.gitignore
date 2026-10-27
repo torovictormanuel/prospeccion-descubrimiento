@@ -1,0 +1,38 @@
+# Secretos — NUNCA subir a GitHub
+.env
+
+# Base de datos local (conversaciones y datos de prospectos)
+*.db
+*.sqlite
+*.sqlite3
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+
+# A diferencia del kit base, acá agent/, config/, tests/ y knowledge/ SÍ se versionan:
+# son el agente de descubrimiento para estudios contables.
+# Si agregás a knowledge/ algo privado (notas de clientes), ponelo en knowledge/privado/.
+knowledge/privado/
+
+# Session state
+config/session.yaml
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Docker
+.dockerignore

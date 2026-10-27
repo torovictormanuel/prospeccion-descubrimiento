@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  form:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: form
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm test
+      - name: Sintaxis del front
+        run: for f in public/*.js api/*.js lib/*.js; do node --check "$f"; done
+
+  agente:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: agente-whatsapp
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt pip-audit
+      - name: Compila
+        run: python -m compileall -q agent
+      - name: Vulnerabilidades en dependencias
+        run: pip-audit -r requirements.txt
