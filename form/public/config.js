@@ -3,7 +3,7 @@ export const CONFIG = {
   // Evento de 20-30 min en Cal.com
   calLink: "https://cal.com/victor-toro-sa1hch/descubrimiento",
   // Número de WhatsApp del agente (con código de país, sin + ni espacios)
-  waNumero: "549XXXXXXXXXX",
+  waNumero: "5491153371839",
   responsable: "Victor Toro",
   contactoPrivacidad: "vtoro485@gmail.com",
 };

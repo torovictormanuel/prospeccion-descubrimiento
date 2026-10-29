@@ -200,7 +200,7 @@ function mostrarFinal() {
   const acciones = $("#final-acciones");
   acciones.replaceChildren();
   $("#final-titulo").textContent = `¡Gracias${nombre ? ", " + nombre : ""}!`;
-  const informe = respuestas.quiere_informe ? " Cuando tengamos las respuestas de todos los estudios, te mandamos el informe." : "";
+  const informe = respuestas.quiere_informe ? " Cuando tengamos las respuestas de todos, te mandamos el informe." : "";
 
   if (respuestas.interes_charla === "agendar") {
     $("#final-texto").textContent = "Elegí el horario que te quede cómodo para la charla de 20-30 minutos. No hace falta preparar nada: partimos de lo que respondiste." + informe;

@@ -12,7 +12,7 @@
           ]
         }
       },
-      "id": "bb24f483-8a85-48b4-8e38-36ad2975f2dd",
+      "id": "36c6110e-6676-4a45-bf40-9461e813cdfc",
       "name": "Cada 15 minutos",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
@@ -27,19 +27,19 @@
         "assignments": {
           "assignments": [
             {
-              "id": "4ed8ee78-ab66-4ab9-94d9-b2a0b7c3bdb8",
+              "id": "73604d07-1943-4cbf-b0da-643d27e404ba",
               "name": "sheetId",
               "value": "PEGAR_ID_DEL_GOOGLE_SHEET",
               "type": "string"
             },
             {
-              "id": "1e2314e4-3e8d-4312-98b1-588dce64e10e",
+              "id": "8b323ead-7c91-42a1-9020-4d3d255faab7",
               "name": "miEmail",
               "value": "TU_EMAIL@gmail.com",
               "type": "string"
             },
             {
-              "id": "8f2dde08-8976-4846-b4a3-3f2c9945d79d",
+              "id": "a86dcabe-9d7e-4918-9f1a-1b6087262a30",
               "name": "agenteUrl",
               "value": "https://TU-URL-DEL-AGENTE",
               "type": "string"
@@ -48,7 +48,7 @@
         },
         "options": {}
       },
-      "id": "d232e074-8fef-4f5d-82b3-5672af42c22c",
+      "id": "7bae95bb-409d-4035-92b7-cb5119d68000",
       "name": "Config",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
@@ -61,7 +61,7 @@
       "parameters": {
         "jsCode": "\n// Último evento ya procesado. Se guarda en los datos estáticos del workflow\n// (solo persisten en ejecuciones automáticas, no al probar con 'Execute').\nconst s = $getWorkflowStaticData('global');\nreturn [{ json: { desde_id: s.ultimoId || 0 } }];\n"
       },
-      "id": "de3b2ef2-c4b6-407a-8a25-1df65635f4de",
+      "id": "3a6ddae3-6f47-48c5-8a9d-dd52c78f1b70",
       "name": "Cursor",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -88,7 +88,7 @@
           "timeout": 30000
         }
       },
-      "id": "4c16bd17-141c-42f1-8059-79a3a0686524",
+      "id": "4870006c-1897-4f46-9e3b-8cfaacf89efd",
       "name": "Traer eventos",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -108,7 +108,7 @@
           },
           "conditions": [
             {
-              "id": "d7c24bf2-c44d-478c-a17c-29f727fee631",
+              "id": "0ad61ba8-cad9-41f1-9b12-9b88b35c6465",
               "leftValue": "={{ $json.eventos.length }}",
               "rightValue": 0,
               "operator": {
@@ -121,7 +121,7 @@
         },
         "options": {}
       },
-      "id": "12786823-f172-4c7b-80c8-2e8873a38fb9",
+      "id": "3b726c90-39c4-4cd6-ac3c-d206ee674631",
       "name": "¿Hay eventos?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
@@ -145,7 +145,7 @@
         },
         "options": {}
       },
-      "id": "56ff313a-2d32-4809-a1d9-e8c90b0dded7",
+      "id": "580dd1ab-1a76-4043-bb14-bb267a15d921",
       "name": "Leer pipeline",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
@@ -160,7 +160,7 @@
       "parameters": {
         "jsCode": "const TZ = 'America/Argentina/Buenos_Aires';\n\n// Las fechas de la planilla pueden venir como 28/10/2026, 2026-10-28 o número de serie\nconst parseFecha = v => {\n  if (v === undefined || v === null || v === '') return null;\n  const s = String(v).trim();\n  let m = s.match(/^(\\d{1,2})\\/(\\d{1,2})\\/(\\d{4})/);\n  if (m) return DateTime.fromObject({ year: +m[3], month: +m[2], day: +m[1] }, { zone: TZ });\n  m = s.match(/^(\\d{4})-(\\d{2})-(\\d{2})/);\n  if (m) return DateTime.fromObject({ year: +m[1], month: +m[2], day: +m[3] }, { zone: TZ });\n  if (/^\\d+(\\.\\d+)?$/.test(s)) return DateTime.fromObject({ year: 1899, month: 12, day: 30 }, { zone: TZ }).plus({ days: Math.floor(+s) });\n  return null;\n};\nconst esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\\n/g, '<br>');\n// '3. Conversación' → 3. '10. Nutrir' cuenta como 0 para poder reactivar el lead.\nconst numEtapa = e => { const n = parseInt(String(e || '0'), 10) || 0; return n === 10 ? 0 : n; };\n\n// Traduce los eventos del agente a cambios en la planilla, filas de Hallazgos y avisos.\nconst resp = $('Traer eventos').first().json;\nconst eventos = resp.eventos || [];\nconst filas = $('Leer pipeline').all().map(i => i.json).filter(f => f.ID !== undefined && f.ID !== '');\nconst porId = Object.fromEntries(filas.map(f => [String(f.ID), f]));\nconst porCodigo = Object.fromEntries(filas.filter(f => f['Código']).map(f => [String(f['Código']), f]));\nconst hoy = $now.setZone(TZ).toFormat('yyyy-MM-dd');\nconst updates = {}, hallazgos = [], avisos = [];\n\nfor (const e of eventos) {\n  const d = e.detalle || {};\n  // ref = ID numérico (link de LinkedIn) o Código (link del form)\n  const fila = e.ref ? (porId[String(e.ref)] || porCodigo[String(e.ref)]) : null;\n  const cuando = DateTime.fromISO(e.creado_en).setZone(TZ);\n  const quien = fila ? `${fila['Empresa']} (${fila['Contacto'] || e.nombre || 'sin nombre'})`\n                     : `${e.nombre || 'Alguien'}${e.empresa ? ' de ' + e.empresa : ''} — +${e.telefono} (sin ref)`;\n  const wa = `<a href=\"https://wa.me/${e.telefono}\">abrir chat</a>`;\n\n  if (e.tipo === 'hallazgo') hallazgos.push({\n    'Fecha': cuando.toFormat('yyyy-MM-dd'), 'ID': fila ? fila.ID : '', 'Empresa': fila ? fila['Empresa'] : (e.empresa || ''),\n    'Contacto': fila ? fila['Contacto'] : (e.nombre || ''), 'Tema': d.tema || '', 'Descripción': d.descripcion || '',\n    'Frecuencia': d.frecuencia || '', 'Impacto': d.impacto || '', 'Herramienta actual': d.herramienta_actual || '',\n    'Cita textual': d.cita_textual || '', 'Fuente': 'WhatsApp' });\n\n  if (!fila) {\n    if (['primer_contacto', 'agendado', 'escalar'].includes(e.tipo)) avisos.push(`<b>${e.tipo}</b>: ${esc(quien)} · ${wa}`);\n    continue;\n  }\n  const u = updates[fila.ID] ??= { 'ID': fila.ID };\n  const etapa = () => u['Etapa'] || fila['Etapa'];\n  const subir = nueva => {\n    if (/^(8|9)\\./.test(String(etapa()))) return;\n    if (numEtapa(nueva) > numEtapa(etapa())) u['Etapa'] = nueva;\n  };\n\n  switch (e.tipo) {\n    case 'primer_contacto':\n      subir('3. Conversación');\n      Object.assign(u, { 'Canal': 'WhatsApp', 'WhatsApp': '+' + e.telefono, 'Secuencia': 'Pausada',\n        'Último contacto': cuando.toFormat('yyyy-MM-dd'), 'Próxima acción': 'Conversando con Lía por WhatsApp',\n        'Toques': Number(fila['Toques'] || 0) + 1 });\n      avisos.push(`📲 <b>${esc(quien)}</b> escribió por WhatsApp · ${wa}`);\n      break;\n    case 'datos':\n      if (d.nombre && !fila['Contacto']) u['Contacto'] = d.nombre;\n      if (d.email && !fila['Email']) u['Email'] = d.email;\n      break;\n    case 'hallazgo': {\n      const base = u['Dolor detectado'] ?? fila['Dolor detectado'] ?? '';\n      u['Dolor detectado'] = ((base ? base + ' | ' : '') + `${d.tema}: ${d.descripcion}`).slice(0, 1500);\n      break;\n    }\n    case 'agendado': {\n      const ini = DateTime.fromISO(d.inicio).setZone(TZ);\n      subir('4. Reunión agendada');\n      Object.assign(u, { 'Fecha próx. acción': ini.toFormat('yyyy-MM-dd'),\n        'Próxima acción': `Llamada de descubrimiento ${ini.toFormat('dd/MM HH:mm')}` });\n      avisos.push(`📅 <b>${esc(quien)}</b> agendó la llamada para el <b>${ini.toFormat('dd/MM HH:mm')}</b><br>\n        <span style=\"color:#555\">Lo que ya contó: ${esc(u['Dolor detectado'] ?? fila['Dolor detectado'] ?? '—')}</span>`);\n      break;\n    }\n    case 'no_contactar':\n      Object.assign(u, { 'Etapa': '9. Perdido', 'No contactar': 'SI', 'Secuencia': 'Terminada', 'Próxima acción': '' });\n      avisos.push(`🚫 ${esc(quien)} pidió no ser contactado (${esc(d.motivo)})`);\n      break;\n    case 'escalar':\n      Object.assign(u, { 'Próxima acción': `Responder por WhatsApp: ${d.motivo}`, 'Fecha próx. acción': hoy });\n      avisos.push(`⚠️ <b>${esc(quien)}</b> necesita que le respondas vos: ${esc(d.motivo)} · ${wa}`);\n      break;\n  }\n}\n\n// Se avanza el cursor acá: si una escritura posterior falla, ese lote no se reintenta\n// (queda en el agente y en el mail de aviso, se puede cargar a mano).\n$getWorkflowStaticData('global').ultimoId = resp.ultimo_id;\nreturn [{ json: { updates: Object.values(updates), hallazgos, avisos } }];\n"
       },
-      "id": "34fb029f-8124-4112-af3e-8136087036d3",
+      "id": "7c60d69d-78b6-499e-9101-eb96cb2e0699",
       "name": "Procesar eventos",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -173,7 +173,7 @@
       "parameters": {
         "jsCode": "return $json.updates.map(u => ({ json: u }));"
       },
-      "id": "b009aa57-b9fb-46e8-ac55-c911579fcc7d",
+      "id": "e5b9f00a-e772-45d6-8600-b92d3ba8d7b1",
       "name": "Filas a actualizar",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -207,7 +207,7 @@
           "cellFormat": "USER_ENTERED"
         }
       },
-      "id": "5cec4fc2-302a-4634-912c-5bda3eda47ff",
+      "id": "5dc494c3-eda9-4d40-af74-3f55e3017c86",
       "name": "Actualizar pipeline",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
@@ -220,7 +220,7 @@
       "parameters": {
         "jsCode": "return $json.hallazgos.map(h => ({ json: h }));"
       },
-      "id": "993a3cef-cdac-4e5c-b4f0-5c4e23ef6c0b",
+      "id": "c5e240c8-b0a6-47ed-894d-ec4edf1c9582",
       "name": "Hallazgos a cargar",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -251,7 +251,7 @@
           "cellFormat": "USER_ENTERED"
         }
       },
-      "id": "f7afecca-3c5e-44d8-aa0a-ec97269509b2",
+      "id": "46a2005a-2d4f-49f8-8f2e-bb0ad2879059",
       "name": "Cargar hallazgos",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
@@ -264,7 +264,7 @@
       "parameters": {
         "jsCode": "\nconst avisos = $json.avisos;\nif (!avisos.length) return [];\nconst html = `<div style=\"font-family:Arial,sans-serif;max-width:680px\"><ul>${avisos.map(a => `<li style=\"margin-bottom:10px\">${a}</li>`).join('')}</ul></div>`;\nreturn [{ json: { asunto: `Pipeline: ${avisos.length} novedad${avisos.length > 1 ? 'es' : ''} del agente de WhatsApp`, html } }];\n"
       },
-      "id": "8126c75a-2a0e-439c-b51d-d8cfecb10ccc",
+      "id": "988db6d4-442f-40da-b555-ea33ad1e95ed",
       "name": "Armar aviso",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -283,7 +283,7 @@
           "appendAttribution": false
         }
       },
-      "id": "265731a0-88e4-438e-88ab-c3a26f0a5a7b",
+      "id": "ae8bae86-e5f1-4579-a742-de05386c3189",
       "name": "Avisarme",
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.1,
@@ -298,7 +298,7 @@
         "height": 420,
         "width": 520
       },
-      "id": "57b29e24-ebf0-40ed-a27c-ec239f1b181c",
+      "id": "1b12ab69-ec86-489a-898d-7c43078ebd5b",
       "name": "Nota",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,

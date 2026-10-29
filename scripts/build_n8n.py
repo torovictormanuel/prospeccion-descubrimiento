@@ -129,7 +129,7 @@ t = schedule(w, "Lunes a viernes 8:30", {"field": "cronExpression", "expression"
 c = config(w, {
     "sheetId": "PEGAR_ID_DEL_GOOGLE_SHEET",
     "miEmail": "TU_EMAIL@gmail.com",
-    "waNumero": "549XXXXXXXXXX",
+    "waNumero": "5491153371839",
     "calLink": "https://cal.com/victor-toro-sa1hch/descubrimiento",
     "formUrl": "https://prospeccion-descubrimiento-form.vercel.app",
     "geminiModelo": "gemini-2.5-flash",

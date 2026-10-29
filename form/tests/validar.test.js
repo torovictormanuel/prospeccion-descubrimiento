@@ -8,9 +8,10 @@ const valida = () => ({
   fuente: "linkedin",
   sitio_web: "",
   respuestas: {
-    tamano: "11-25", clientes: "150-300", tipo_clientes: ["monotributo", "empleadores"],
+    modalidad: "socio_estudio", tamano: "11-25", clientes: "150-300", tipo_clientes: ["monotributo", "empleadores"],
     tareas_tiempo: ["pedir_documentacion", "sueldos"], doc_canales: ["whatsapp", "mail"],
-    doc_tarde: "25-50", horas_repetitivas: "15-30",
+    fuera_arca: ["novedades_sueldos", "extractos"], doc_tarde: "25-50", horas_repetitivas: "15-30",
+    sistema: ["holistor"], falla_sistema: ["recibir_doc", "faltantes"],
     control_tareas: "excel", dependencia: "mucho", vencimiento_pasado: "trimestre",
     honorarios_tarde: "<25", uso_ia: "no_se_como",
     tarea_eliminar: "Perseguir a los clientes para que manden las facturas.",
@@ -70,4 +71,12 @@ test("rechaza tipos inesperados (arrays u objetos donde va texto)", () => {
   assert.equal(r.errores.tamano, "Opción inválida");
   assert.ok(r.errores.consentimiento);
   assert.equal(validarRespuesta([]).ok, false);
+});
+
+test("v2: exige modalidad, sistema y en qué falla el sistema", () => {
+  const b = valida(); delete b.respuestas.modalidad; delete b.respuestas.sistema; delete b.respuestas.falla_sistema;
+  const r = validarRespuesta(b);
+  assert.ok(r.errores.modalidad && r.errores.sistema && r.errores.falla_sistema);
+  const c = valida(); c.respuestas.falla_sistema = ["recibir_doc", "faltantes", "bancos", "avisos"];
+  assert.equal(validarRespuesta(c).errores.falla_sistema, "Máximo 3");
 });

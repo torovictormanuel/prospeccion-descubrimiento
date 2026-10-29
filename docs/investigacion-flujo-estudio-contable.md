@@ -55,6 +55,21 @@ ordenar canales, controlar tareas y vencimientos, y no depender de una sola
 persona. Justo ahí la automatización (WhatsApp, recordatorios, tableros,
 carga asistida con IA) tiene más impacto y menos riesgo profesional.
 
+### Hipótesis sumadas en la v2 (sesión "Sistema complementario contable")
+
+El proyecto **no busca reemplazar el sistema contable** del contador, sino
+complementarlo donde se queda corto.
+
+| # | Hipótesis | Por qué importa | Pregunta |
+|---|---|---|---|
+| H11 | Lo que más cuesta es lo que **no está en ARCA**: novedades de sueldos, extractos, retenciones de bancos, tickets, compras del exterior y plataformas | Los sistemas en la nube (SOS Contador, Xubio) ya importan lo que está en ARCA | `fuera_arca` |
+| H12 | Los sistemas de escritorio (Holistor, Bejerman, Tango, Catedral) **no tienen portal para el cliente** | Define el segmento: escritorio → capa intermedia completa; nube → solo lo que no está en ARCA | `sistema` |
+| H13 | Hay huecos concretos del sistema que se repiten: recibir la documentación, saber qué falta, carga manual, sueldos, bancos, avisos y tablero | Es exactamente lo que se puede sumar sin competir con el sistema | `falla_sistema` |
+
+El form también se abrió a **contadores en general** (independientes, socios,
+empleados de estudios y contadores de empresa), con la pregunta `modalidad`
+para segmentar.
+
 ## 3. Cómo se traduce en preguntas
 
 Reglas (método *The Mom Test* aplicado a un form):

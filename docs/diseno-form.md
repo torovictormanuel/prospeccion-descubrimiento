@@ -1,8 +1,10 @@
 # Diseño del form de descubrimiento
 
-**Objetivo:** encontrar los problemas operativos que más se repiten en estudios
-contables de 10 a 50 personas y conseguir la charla de 20-30 minutos, **sin
-vender**. Se completa en unos 4 minutos desde el celular.
+**Objetivo:** encontrar los problemas operativos que más se repiten entre
+contadores (independientes, estudios y empresas) y **en qué no les alcanza el
+sistema contable que ya usan**, para complementarlo, no reemplazarlo. Y
+conseguir la charla de 20-30 minutos, **sin vender**. Se completa en unos 5
+minutos desde el celular. Versión actual: `2026-10-v2`.
 
 Las preguntas viven en [`form/public/preguntas.js`](../form/public/preguntas.js).
 Si cambiás una, cambiá también `VERSION` para poder separar las respuestas
@@ -12,14 +14,18 @@ viejas de las nuevas al analizar.
 
 | Pantalla | Pregunta | Tipo | Valida |
 |---|---|---|---|
-| 1 · Tu estudio | Personas en el estudio | una opción | segmento |
-| | Clientes activos | una opción | segmento |
+| 1 · Cómo trabajás | Modalidad (independiente, socio, empleado, empresa, combinado) | una opción | segmento |
+| | Personas que trabajan con vos | una opción | segmento |
+| | Clientes o empresas que atienden | una opción | segmento |
 | | Tipo de clientes | varias | segmento |
 | 2 · El último mes | Tareas que llevaron más tiempo del debido (hasta 3) | varias | H1-H8 |
 | | Por dónde llega la documentación | varias | H1, H5 |
+| | Qué información NO sale de ARCA y se pide o carga a mano | varias | H11 |
 | | Parte de los clientes que mandó todo tarde o incompleto | una opción | H1 |
 | | Horas por semana en tareas repetitivas | una opción | H2, H9 |
-| 3 · Cómo se organizan | Con qué controlan tareas y vencimientos | una opción | H8 |
+| 3 · Cómo se organizan | Sistema contable que usan (hasta 3) | varias | H12 |
+| | En qué no les alcanza el sistema (hasta 3) | varias | H13 |
+| | Con qué controlan tareas y vencimientos | una opción | H8 |
 | | Qué pasa si la persona clave se va 2 semanas | una opción | H7 |
 | | Última vez que se pasó un vencimiento por algo interno | una opción | H3 |
 | | Parte de los clientes que paga honorarios tarde | una opción | H6 |
