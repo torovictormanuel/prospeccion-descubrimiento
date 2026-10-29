@@ -130,7 +130,7 @@ c = config(w, {
     "sheetId": "PEGAR_ID_DEL_GOOGLE_SHEET",
     "miEmail": "TU_EMAIL@gmail.com",
     "waNumero": "549XXXXXXXXXX",
-    "calLink": "https://cal.com/TU_USUARIO/descubrimiento-20min",
+    "calLink": "https://cal.com/victor-toro-sa1hch/descubrimiento",
     "formUrl": "https://TU-FORM.vercel.app",
     "geminiModelo": "gemini-2.5-flash",
     "leadsPorDia": 12,
