@@ -59,10 +59,13 @@ el trabajo pesado; vos solo hacés clic en "enviar".
 1. Completá `form/public/config.js`: link de Cal.com, número de WhatsApp del
    agente y tu email de contacto para privacidad.
 2. Probalo en local: `cd form && npm test && npm run dev`.
-3. Desplegalo: `cd form && npx vercel` (te pide iniciar sesión la primera vez).
-4. En Vercel → *Settings → Environment Variables*: `SUPABASE_URL`,
-   `SUPABASE_SERVICE_ROLE_KEY`, `IP_HASH_SALT` (ver `form/.env.example`).
-   Redeploy: `npx vercel --prod`.
+3. Desplegalo importando el repo en vercel.com/new, con **Root Directory =
+   `form`** y preset *Other*. Cada push a `main` vuelve a publicar.
+4. Conectá Supabase sin copiar claves: vercel.com/marketplace/supabase →
+   *Install* → **Link Existing Supabase Account** → acceso solo a este
+   proyecto → elegí el proyecto de Supabase. Carga `SUPABASE_URL` y
+   `SUPABASE_SECRET_KEY` (entre otras). Las variables entran en el siguiente
+   deploy. Verificalo en `/api/salud`, que tiene que devolver `{"ok":true}`.
 5. Recomendado: en Vercel → *Firewall*, agregá una regla de rate limit para
    `/api/respuesta` (por ejemplo, 20 por minuto por IP).
 6. Recomendado: activá *Analytics* (Web Analytics, gratis y sin cookies) para
