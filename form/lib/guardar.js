@@ -5,7 +5,9 @@ import { appendFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 
 export function hashIp(ip) {
-  const sal = process.env.IP_HASH_SALT || "";
+  // Sin sal, un hash de IPv4 se revierte probando las 4 mil millones de IPs.
+  // Si no se define IP_HASH_SALT se usa la service role key: ya es secreta y vive solo en el servidor.
+  const sal = process.env.IP_HASH_SALT || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
   return createHash("sha256").update(`${sal}:${ip}`).digest("hex").slice(0, 32);
 }
 
