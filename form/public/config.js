@@ -5,5 +5,5 @@ export const CONFIG = {
   // Número de WhatsApp del agente (con código de país, sin + ni espacios)
   waNumero: "549XXXXXXXXXX",
   responsable: "Victor Toro",
-  contactoPrivacidad: "TU_EMAIL@gmail.com",
+  contactoPrivacidad: "vtoro485@gmail.com",
 };
