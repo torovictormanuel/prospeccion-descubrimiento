@@ -12,7 +12,7 @@
           ]
         }
       },
-      "id": "f7080f92-64db-40b4-9fb9-833d8e571d27",
+      "id": "51f9d50d-5c7c-4ad0-a345-550ce4fcf9fb",
       "name": "Cada 30 minutos",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
@@ -27,13 +27,13 @@
         "assignments": {
           "assignments": [
             {
-              "id": "f0347019-e57a-44c1-98d1-e30cacf49d8d",
+              "id": "b4175d3e-8bd5-40de-9df6-7d54024fd2ae",
               "name": "sheetId",
               "value": "PEGAR_ID_DEL_GOOGLE_SHEET",
               "type": "string"
             },
             {
-              "id": "e2db954b-f28f-4377-948b-36d1154e21b6",
+              "id": "170e4e6a-603f-4c71-97c3-f04ecfd5fb1b",
               "name": "miEmail",
               "value": "TU_EMAIL@gmail.com",
               "type": "string"
@@ -42,7 +42,7 @@
         },
         "options": {}
       },
-      "id": "3e8e5e86-e78e-45f1-a176-41c1c442fde7",
+      "id": "97a40cf5-4eab-4436-9854-757cff60d77c",
       "name": "Config",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
@@ -82,7 +82,7 @@
           "timeout": 30000
         }
       },
-      "id": "6cfe35f4-1d38-4bab-be79-94c2717b919c",
+      "id": "b1280e14-9757-4583-bc07-25ed4df91da0",
       "name": "Traer reservas",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -106,7 +106,7 @@
         },
         "options": {}
       },
-      "id": "d3338bcf-0023-4706-bb96-3a81178efafb",
+      "id": "d2081f0c-3d27-4ffd-b175-d28a909f8bff",
       "name": "Leer pipeline",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
@@ -121,7 +121,7 @@
       "parameters": {
         "jsCode": "const TZ = 'America/Argentina/Buenos_Aires';\n\n// Las fechas de la planilla pueden venir como 28/10/2026, 2026-10-28 o número de serie\nconst parseFecha = v => {\n  if (v === undefined || v === null || v === '') return null;\n  const s = String(v).trim();\n  let m = s.match(/^(\\d{1,2})\\/(\\d{1,2})\\/(\\d{4})/);\n  if (m) return DateTime.fromObject({ year: +m[3], month: +m[2], day: +m[1] }, { zone: TZ });\n  m = s.match(/^(\\d{4})-(\\d{2})-(\\d{2})/);\n  if (m) return DateTime.fromObject({ year: +m[1], month: +m[2], day: +m[3] }, { zone: TZ });\n  if (/^\\d+(\\.\\d+)?$/.test(s)) return DateTime.fromObject({ year: 1899, month: 12, day: 30 }, { zone: TZ }).plus({ days: Math.floor(+s) });\n  return null;\n};\nconst esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\\n/g, '<br>');\n// '3. Conversación' → 3. '10. Nutrir' cuenta como 0 para poder reactivar el lead.\nconst numEtapa = e => { const n = parseInt(String(e || '0'), 10) || 0; return n === 10 ? 0 : n; };\n\n// Vincula cada reserva nueva de Cal.com con su fila: primero por la ref del link,\n// después por el email del invitado.\nconst s = $getWorkflowStaticData('global');\ns.uids = s.uids || [];\nconst reservas = $('Traer reservas').first().json.data || [];\nconst filas = $('Leer pipeline').all().map(i => i.json).filter(f => f.ID !== undefined && f.ID !== '');\nconst porId = Object.fromEntries(filas.map(f => [String(f.ID), f]));\nconst porCodigo = Object.fromEntries(filas.filter(f => f['Código']).map(f => [String(f['Código']), f]));\nconst porEmail = Object.fromEntries(filas.filter(f => f['Email']).map(f => [String(f['Email']).toLowerCase(), f]));\nconst updates = [], avisos = [];\n\nfor (const b of reservas) {\n  if (String(b.status || '').toLowerCase() !== 'accepted' || s.uids.includes(b.uid)) continue;\n  s.uids.push(b.uid);\n  let ref = b.metadata?.ref;\n  if (!ref) { const m = JSON.stringify(b).match(/ref\\s*#?\\s*(\\d{1,6})/i); if (m) ref = m[1]; }\n  const codigo = b.metadata?.codigo;  // reserva hecha desde la pantalla final del form\n  const inv = (b.attendees || [])[0] || {};\n  const fila = (ref && porId[String(ref)]) || (codigo && porCodigo[String(codigo)]) ||\n               (inv.email && porEmail[String(inv.email).toLowerCase()]) || null;\n  const ini = DateTime.fromISO(b.start).setZone(TZ);\n  const viaAgente = !!b.metadata?.telefono;  // el workflow 02 ya avisó estas\n\n  if (fila) {\n    const u = { 'ID': fila.ID, 'Fecha próx. acción': ini.toFormat('yyyy-MM-dd'),\n      'Próxima acción': `Llamada de descubrimiento ${ini.toFormat('dd/MM HH:mm')}`, 'Secuencia': 'Pausada' };\n    if (!/^(8|9)\\./.test(String(fila['Etapa'])) && numEtapa(fila['Etapa']) < 4) u['Etapa'] = '4. Reunión agendada';\n    if (!fila['Email'] && inv.email) u['Email'] = inv.email;\n    updates.push(u);\n  }\n  if (!viaAgente) avisos.push(`📅 <b>${esc(fila ? fila['Empresa'] : inv.name || 'Alguien')}</b>${fila ? ` (${esc(fila['Contacto'])})` : ' — no la encontré en la planilla'}\n    reservó para el <b>${ini.toFormat('dd/MM HH:mm')}</b> · ${esc(inv.email)}\n    ${fila ? `<br><span style=\"color:#555\">Dolor detectado: ${esc(fila['Dolor detectado'] || '—')} · <a href=\"${esc(fila['LinkedIn / Web'])}\">perfil</a></span>` : ''}`);\n}\ns.uids = s.uids.slice(-500);\nreturn [{ json: { updates, avisos } }];\n"
       },
-      "id": "d73916b2-7500-4dd8-bca8-718989aba9c5",
+      "id": "7ab9c1ae-bb6e-4ca2-ae9e-18ee8a26e3c7",
       "name": "Procesar reservas",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -134,7 +134,7 @@
       "parameters": {
         "jsCode": "return $json.updates.map(u => ({ json: u }));"
       },
-      "id": "a02125cc-cc30-490b-a64f-9e7f1ef7116b",
+      "id": "d7bea851-0375-47cc-9e59-58658d718955",
       "name": "Filas a actualizar",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -168,7 +168,7 @@
           "cellFormat": "USER_ENTERED"
         }
       },
-      "id": "017c1601-0395-46d1-9e66-f2dac449caf3",
+      "id": "ea551a01-73c2-43a4-a693-05f52fb8ba26",
       "name": "Actualizar pipeline",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
@@ -181,7 +181,7 @@
       "parameters": {
         "jsCode": "\nconst avisos = $json.avisos;\nif (!avisos.length) return [];\nconst html = `<div style=\"font-family:Arial,sans-serif;max-width:680px\"><ul>${avisos.map(a => `<li style=\"margin-bottom:10px\">${a}</li>`).join('')}</ul><p>Guion de la llamada: hoja \"Guion llamada\" de la planilla.</p></div>`;\nreturn [{ json: { asunto: `Nueva llamada de descubrimiento agendada (${avisos.length})`, html } }];\n"
       },
-      "id": "ac85cae4-de1c-4f50-89de-e2f8fdeb670f",
+      "id": "0259cafe-0c23-405c-a9c2-752c9e0e8800",
       "name": "Armar aviso",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -200,7 +200,7 @@
           "appendAttribution": false
         }
       },
-      "id": "216df468-a423-416a-be6c-83e0b9a98507",
+      "id": "2ffb5b33-b3c3-4b89-90e0-b0f5694c4d26",
       "name": "Avisarme",
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.1,
@@ -215,7 +215,7 @@
         "height": 420,
         "width": 520
       },
-      "id": "9402e726-a8e9-4da7-8b5d-f0af8171b2cf",
+      "id": "f4ae3f64-0ffa-4a84-9131-22de56cc4cee",
       "name": "Nota",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,

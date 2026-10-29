@@ -12,7 +12,7 @@
           ]
         }
       },
-      "id": "49ce625a-449a-4595-9fd3-31c9cdeb447d",
+      "id": "8a87f74a-b0e4-4142-9c70-4da6e8203a44",
       "name": "Cada 15 minutos",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
@@ -27,13 +27,13 @@
         "assignments": {
           "assignments": [
             {
-              "id": "9f6a8c52-df8c-4eb5-a5bc-4396af9204c4",
+              "id": "9fefb975-2351-48ce-96fe-b7672fdf0b39",
               "name": "sheetId",
               "value": "PEGAR_ID_DEL_GOOGLE_SHEET",
               "type": "string"
             },
             {
-              "id": "12c1cdbb-de48-4b71-9fd2-1ef4c0f370cd",
+              "id": "a1cd7376-e366-4282-85df-2a6c0275f2d2",
               "name": "miEmail",
               "value": "TU_EMAIL@gmail.com",
               "type": "string"
@@ -42,7 +42,7 @@
         },
         "options": {}
       },
-      "id": "e0cee1ab-813a-4f28-a1d3-f82dbad708fe",
+      "id": "503e356c-b2b7-482c-9edb-e3d894a53f5f",
       "name": "Config",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
@@ -55,7 +55,7 @@
       "parameters": {
         "jsCode": "\n// Última respuesta ya procesada (solo persiste en ejecuciones automáticas).\nreturn [{ json: { desde_id: $getWorkflowStaticData('global').ultimoId || 0 } }];\n"
       },
-      "id": "cafe2fad-d518-48dd-87de-ad3d04acc57c",
+      "id": "4c7f0f61-5b49-4a02-8988-f57e257b9d2d",
       "name": "Cursor",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -72,7 +72,7 @@
         "filterType": "string",
         "filterString": "=id=gt.{{ $json.desde_id }}"
       },
-      "id": "4910238c-7e79-4603-a872-20b41375c4a4",
+      "id": "dc3f3603-b065-4beb-a10e-d1252af66e6f",
       "name": "Traer respuestas",
       "type": "n8n-nodes-base.supabase",
       "typeVersion": 1,
@@ -96,7 +96,7 @@
         },
         "options": {}
       },
-      "id": "6fe0c90d-b80c-4afa-94d4-a3d65c0d5e84",
+      "id": "640137c5-f0f7-4055-8000-b7c458a65b98",
       "name": "Leer pipeline",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
@@ -111,7 +111,7 @@
       "parameters": {
         "jsCode": "const TZ = 'America/Argentina/Buenos_Aires';\n\n// Las fechas de la planilla pueden venir como 28/10/2026, 2026-10-28 o número de serie\nconst parseFecha = v => {\n  if (v === undefined || v === null || v === '') return null;\n  const s = String(v).trim();\n  let m = s.match(/^(\\d{1,2})\\/(\\d{1,2})\\/(\\d{4})/);\n  if (m) return DateTime.fromObject({ year: +m[3], month: +m[2], day: +m[1] }, { zone: TZ });\n  m = s.match(/^(\\d{4})-(\\d{2})-(\\d{2})/);\n  if (m) return DateTime.fromObject({ year: +m[1], month: +m[2], day: +m[3] }, { zone: TZ });\n  if (/^\\d+(\\.\\d+)?$/.test(s)) return DateTime.fromObject({ year: 1899, month: 12, day: 30 }, { zone: TZ }).plus({ days: Math.floor(+s) });\n  return null;\n};\nconst esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\\n/g, '<br>');\n// '3. Conversación' → 3. '10. Nutrir' cuenta como 0 para poder reactivar el lead.\nconst numEtapa = e => { const n = parseInt(String(e || '0'), 10) || 0; return n === 10 ? 0 : n; };\nconst PREG = [{\"id\": \"tamano\", \"tipo\": \"single\", \"texto\": \"¿Cuántas personas trabajan en el estudio, contándote?\", \"opciones\": {\"1\": \"Solo yo\", \"2-5\": \"2 a 5\", \"6-10\": \"6 a 10\", \"11-25\": \"11 a 25\", \"26-50\": \"26 a 50\", \"50+\": \"Más de 50\"}}, {\"id\": \"clientes\", \"tipo\": \"single\", \"texto\": \"¿Con cuántos clientes activos trabajan, más o menos?\", \"opciones\": {\"<50\": \"Menos de 50\", \"50-150\": \"50 a 150\", \"150-300\": \"150 a 300\", \"300-600\": \"300 a 600\", \"600+\": \"Más de 600\"}}, {\"id\": \"tipo_clientes\", \"tipo\": \"multi\", \"texto\": \"¿Qué tipo de clientes tienen? Marcá todos los que correspondan.\", \"opciones\": {\"monotributo\": \"Monotributistas\", \"ri_pymes\": \"Responsables inscriptos / pymes\", \"empleadores\": \"Empresas con empleados\", \"sociedades\": \"Sociedades (SA, SRL, SAS)\", \"profesionales\": \"Profesionales / autónomos\", \"agro\": \"Agro\", \"ecommerce\": \"E-commerce / Mercado Libre\"}}, {\"id\": \"tareas_tiempo\", \"tipo\": \"multi\", \"texto\": \"En el último mes, ¿qué tareas les llevaron más tiempo del que deberían? Elegí hasta 3.\", \"opciones\": {\"pedir_documentacion\": \"Pedir y perseguir documentación a clientes\", \"carga_comprobantes\": \"Cargar comprobantes y facturas\", \"conciliaciones\": \"Conciliaciones bancarias\", \"sueldos\": \"Liquidación de sueldos y novedades\", \"vencimientos\": \"Controlar vencimientos de cada cliente\", \"arca\": \"Presentaciones y pagos en ARCA (caídas, VEPs)\", \"consultas\": \"Responder consultas de clientes (WhatsApp, mail)\", \"honorarios\": \"Cobrar honorarios\", \"reportes\": \"Armar reportes o informes para clientes\", \"equipo\": \"Revisar el trabajo del equipo o capacitar\", \"normativa\": \"Actualizarse con cambios normativos\"}}, {\"id\": \"doc_canales\", \"tipo\": \"multi\", \"texto\": \"¿Por dónde les llega la documentación de los clientes?\", \"opciones\": {\"whatsapp\": \"WhatsApp\", \"mail\": \"Mail\", \"papel\": \"Papel / en persona\", \"drive\": \"Drive, Dropbox o carpeta compartida\", \"portal\": \"Portal o sistema del estudio\", \"arca\": \"La bajamos nosotros de ARCA o del banco\"}}, {\"id\": \"doc_tarde\", \"tipo\": \"single\", \"texto\": \"El último mes, ¿qué parte de los clientes mandó la documentación tarde o incompleta?\", \"opciones\": {\"casi_nadie\": \"Casi nadie\", \"<25\": \"Menos de 1 de cada 4\", \"25-50\": \"Entre 1 de cada 4 y la mitad\", \">50\": \"Más de la mitad\"}}, {\"id\": \"horas_repetitivas\", \"tipo\": \"single\", \"texto\": \"Sumando a todo el equipo, ¿cuántas horas por semana se van en tareas repetitivas (cargar, pedir papeles, recordatorios)?\", \"opciones\": {\"<5\": \"Menos de 5\", \"5-15\": \"5 a 15\", \"15-30\": \"15 a 30\", \"30+\": \"Más de 30\", \"ns\": \"No sabría decir\"}}, {\"id\": \"control_tareas\", \"tipo\": \"single\", \"texto\": \"¿Con qué controlan las tareas y vencimientos de cada cliente?\", \"opciones\": {\"excel\": \"Excel o Google Sheets\", \"software\": \"Software del estudio (Onvio, Aconpy, Holistor, etc.)\", \"agenda\": \"Agenda o papel\", \"memoria\": \"Cada uno a su manera / de memoria\", \"otro\": \"Otro\"}}, {\"id\": \"dependencia\", \"tipo\": \"single\", \"texto\": \"Si el socio o la persona clave se toma 2 semanas, ¿qué pasa con el trabajo?\", \"opciones\": {\"sigue\": \"Sigue normal\", \"algo\": \"Se frenan algunas cosas\", \"mucho\": \"Se frena mucho\", \"no_puede\": \"No se puede tomar 2 semanas\"}}, {\"id\": \"vencimiento_pasado\", \"tipo\": \"single\", \"texto\": \"¿Cuándo fue la última vez que se pasó un vencimiento o hubo un recargo por algo interno (no del cliente)?\", \"opciones\": {\"mes\": \"Este último mes\", \"trimestre\": \"En los últimos 3 meses\", \"anio\": \"En el último año\", \"nunca\": \"No recuerdo / nunca\"}}, {\"id\": \"honorarios_tarde\", \"tipo\": \"single\", \"texto\": \"¿Qué parte de los clientes paga los honorarios tarde?\", \"opciones\": {\"casi_nadie\": \"Casi nadie\", \"<25\": \"Menos de 1 de cada 4\", \"25-50\": \"Entre 1 de cada 4 y la mitad\", \">50\": \"Más de la mitad\"}}, {\"id\": \"uso_ia\", \"tipo\": \"single\", \"texto\": \"¿Ya usan IA o automatizaciones en el estudio?\", \"opciones\": {\"si\": \"Sí, en algunas tareas\", \"probamos\": \"Probamos y lo dejamos\", \"no_se_como\": \"No, no sabemos por dónde empezar\", \"no_interesa\": \"No, no nos interesa\"}}, {\"id\": \"tarea_eliminar\", \"tipo\": \"text\", \"texto\": \"Si mañana pudieras sacarte de encima UNA tarea del estudio para siempre, ¿cuál sería y por qué?\", \"opciones\": {}}, {\"id\": \"ultima_vez\", \"tipo\": \"text\", \"texto\": \"(Opcional) Contame la última vez que esa tarea salió mal o llevó más de la cuenta.\", \"opciones\": {}}, {\"id\": \"nombre\", \"tipo\": \"short\", \"texto\": \"Nombre y apellido\", \"opciones\": {}}, {\"id\": \"rol\", \"tipo\": \"short\", \"texto\": \"Tu rol en el estudio\", \"opciones\": {}}, {\"id\": \"estudio\", \"tipo\": \"short\", \"texto\": \"Nombre del estudio\", \"opciones\": {}}, {\"id\": \"email\", \"tipo\": \"email\", \"texto\": \"Email\", \"opciones\": {}}, {\"id\": \"whatsapp\", \"tipo\": \"tel\", \"texto\": \"WhatsApp (opcional)\", \"opciones\": {}}, {\"id\": \"localidad\", \"tipo\": \"short\", \"texto\": \"Localidad y provincia (opcional)\", \"opciones\": {}}, {\"id\": \"interes_charla\", \"tipo\": \"single\", \"texto\": \"¿Te interesaría una charla de 20-30 minutos para profundizar? Te llevás un diagnóstico con ideas concretas para tu estudio, sin costo y sin venta.\", \"opciones\": {\"agendar\": \"Sí, quiero elegir un horario ahora\", \"contactar\": \"Sí, escríbanme para coordinar\", \"ahora_no\": \"Ahora no, gracias\"}}, {\"id\": \"canal\", \"tipo\": \"single\", \"texto\": \"¿Por dónde preferís que te contactemos?\", \"opciones\": {\"whatsapp\": \"WhatsApp\", \"mail\": \"Mail\", \"llamada\": \"Llamada\"}}, {\"id\": \"quiere_informe\", \"tipo\": \"check\", \"texto\": \"Quiero recibir el informe con los resultados de todos los estudios (anónimos).\", \"opciones\": {}}, {\"id\": \"consentimiento\", \"tipo\": \"check\", \"texto\": \"Acepto que usen mis datos solo para esta investigación y para contactarme. Puedo pedir que los borren cuando quiera.\", \"opciones\": {}}];\n\n// Cada respuesta del form actualiza su lead (por código del link o por email),\n// crea filas en Hallazgos y una fila completa en \"Respuestas form\" para analizar patrones.\nconst respuestas = $('Traer respuestas').all().map(i => i.json).filter(r => r.id).sort((a, b) => a.id - b.id);\nconst filas = $('Leer pipeline').all().map(i => i.json).filter(f => f.ID !== undefined && f.ID !== '');\nconst porCodigo = Object.fromEntries(filas.filter(f => f['Código']).map(f => [String(f['Código']), f]));\nconst porEmail = Object.fromEntries(filas.filter(f => f['Email']).map(f => [String(f['Email']).toLowerCase(), f]));\nlet maxId = Math.max(0, ...filas.map(f => Number(f.ID) || 0));\nconst etiqueta = (p, v) => Array.isArray(v) ? v.map(x => p.opciones[x] || x).join(', ') : (p.opciones[v] ?? (v === true ? 'Sí' : v ?? ''));\nconst pregunta = Object.fromEntries(PREG.map(p => [p.id, p]));\n// WhatsApp argentino sin código de país (10 dígitos) → formato internacional para wa.me\nconst normalizarWa = n => { const d = String(n || '').replace(/\\D/g, ''); if (!d) return ''; return '+' + (d.length === 10 ? '549' + d : d); };\n\nconst updates = [], nuevos = [], hallazgos = [], crudas = [], avisos = [];\nfor (const r of respuestas) {\n  const a = r.respuestas || {};\n  const cuando = DateTime.fromISO(r.created_at).setZone(TZ);\n  const fecha = cuando.toFormat('yyyy-MM-dd');\n  let fila = (r.codigo && porCodigo[r.codigo]) || porEmail[String(r.email || '').toLowerCase()] || null;\n  const wa = normalizarWa(r.whatsapp);\n  const interes = r.interes_charla;\n  const seguimiento = {\n    agendar: { etapa: '3. Conversación', prox: 'Esperando que reserve en Cal.com (si en 2 días no reservó, escribirle)', dias: 2 },\n    contactar: { etapa: '3. Conversación', prox: `Responder: coordinar charla por ${({ whatsapp: 'WhatsApp', mail: 'mail', llamada: 'llamada' })[a.canal] || 'mail'}`, dias: 0 },\n    ahora_no: { etapa: '10. Nutrir', prox: 'Mandarle el informe y recontactar', dias: 60 },\n  }[interes] || { etapa: '3. Conversación', prox: 'Revisar respuesta del form', dias: 0 };\n  const dolor = `Form: ${a.tarea_eliminar || ''}`.slice(0, 600);\n\n  if (fila) {\n    const u = { 'ID': fila.ID, 'Secuencia': 'Pausada', 'Canal': 'Form', 'Último contacto': fecha,\n      'Próxima acción': seguimiento.prox, 'Fecha próx. acción': cuando.plus({ days: seguimiento.dias }).toFormat('yyyy-MM-dd'),\n      'Dolor detectado': ((fila['Dolor detectado'] ? fila['Dolor detectado'] + ' | ' : '') + dolor).slice(0, 1500) };\n    const actual = String(fila['Etapa'] || '');\n    if (!/^(8|9)\\./.test(actual) && (seguimiento.etapa.startsWith('10.') ? numEtapa(actual) < 3 : numEtapa(seguimiento.etapa) > numEtapa(actual))) u['Etapa'] = seguimiento.etapa;\n    if (!fila['Email']) u['Email'] = r.email;\n    if (!fila['WhatsApp'] && wa) u['WhatsApp'] = wa;\n    if (!fila['Contacto']) u['Contacto'] = r.nombre;\n    if (!fila['Cargo']) u['Cargo'] = r.rol;\n    updates.push(u);\n  } else {\n    // Llegó alguien que no estaba en la lista (le reenviaron el link): se agrega como lead nuevo\n    maxId += 1;\n    fila = { 'ID': maxId, 'Empresa': r.estudio, 'Contacto': r.nombre };\n    nuevos.push({ 'ID': maxId, 'Segmento': 'Estudio contable', 'Prioridad': 'Alta', 'Empresa': r.estudio, 'Contacto': r.nombre,\n      'Cargo': r.rol, 'Ubicación': a.localidad || '', 'Email': r.email, 'WhatsApp': wa, 'Etapa': seguimiento.etapa,\n      'Canal': 'Form', 'Toques': 0, 'Último contacto': fecha, 'Próxima acción': seguimiento.prox,\n      'Fecha próx. acción': cuando.plus({ days: seguimiento.dias }).toFormat('yyyy-MM-dd'), 'Dolor detectado': dolor,\n      'Secuencia': 'Pausada', 'Paso LinkedIn': 0, 'Código': r.codigo || '', 'Notas': 'Llegó por el form (referido)' });\n  }\n\n  for (const t of a.tareas_tiempo || []) hallazgos.push({ 'Fecha': fecha, 'ID': fila.ID, 'Empresa': r.estudio, 'Contacto': r.nombre,\n    'Tema': pregunta.tareas_tiempo.opciones[t] || t, 'Descripción': 'Marcada en el form como una de las 3 tareas que más tiempo llevan',\n    'Frecuencia': '', 'Impacto': etiqueta(pregunta.horas_repetitivas, a.horas_repetitivas) + ' h/semana en tareas repetitivas',\n    'Herramienta actual': etiqueta(pregunta.control_tareas, a.control_tareas), 'Cita textual': '', 'Fuente': 'Form' });\n  hallazgos.push({ 'Fecha': fecha, 'ID': fila.ID, 'Empresa': r.estudio, 'Contacto': r.nombre, 'Tema': 'Tarea que eliminaría',\n    'Descripción': a.tarea_eliminar || '', 'Frecuencia': '', 'Impacto': '', 'Herramienta actual': '',\n    'Cita textual': a.ultima_vez || '', 'Fuente': 'Form' });\n\n  const cruda = { 'Fecha': fecha, 'ID': fila.ID, 'Código': r.codigo || '', 'Versión': r.version, 'Segundos': r.segundos,\n    'Estudio': r.estudio, 'Nombre': r.nombre, 'Rol': r.rol, 'Email': r.email, 'WhatsApp': wa };\n  for (const p of PREG) if (!['nombre', 'rol', 'estudio', 'email', 'whatsapp', 'consentimiento'].includes(p.id)) cruda[p.id] = etiqueta(p, a[p.id]);\n  crudas.push(cruda);\n\n  const textoInteres = { agendar: '📅 quiere agendar ya', contactar: '💬 quiere que lo contactes', ahora_no: 'ahora no' }[interes] || interes;\n  avisos.push(`<b>${esc(r.nombre)}</b> (${esc(r.rol)}, ${esc(r.estudio)}) completó el form — <b>${textoInteres}</b><br>\n    <span style=\"color:#555\">Tareas: ${esc(etiqueta(pregunta.tareas_tiempo, a.tareas_tiempo))}<br>\n    “${esc(a.tarea_eliminar)}”</span>\n    ${wa ? `<br><a href=\"https://wa.me/${wa.replace('+', '')}\">WhatsApp</a> · ` : '<br>'}<a href=\"mailto:${esc(r.email)}\">${esc(r.email)}</a>\n    ${fila && !nuevos.find(n => n.ID === fila.ID) ? '' : ' · <i>lead nuevo (no estaba en la lista)</i>'}`);\n}\nif (respuestas.length) $getWorkflowStaticData('global').ultimoId = respuestas[respuestas.length - 1].id;\nreturn [{ json: { updates, nuevos, hallazgos, crudas, avisos } }];\n"
       },
-      "id": "f21c1f99-ac5d-4366-bf26-1215d35157ad",
+      "id": "a306357b-1920-44b8-9210-ab41d355bfe4",
       "name": "Procesar respuestas",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -124,7 +124,7 @@
       "parameters": {
         "jsCode": "return $json.updates.map(u => ({ json: u }));"
       },
-      "id": "bfc251ac-330f-441b-ac9c-464f0e0122d8",
+      "id": "0d5b657b-55c1-4f30-afc0-6b0e06ad2c84",
       "name": "Filas a actualizar",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -158,7 +158,7 @@
           "cellFormat": "USER_ENTERED"
         }
       },
-      "id": "7aa07a3d-9a5c-420d-88ec-b7aedda1b4b5",
+      "id": "8b8668e1-978a-42cb-8034-ce26ff335933",
       "name": "Actualizar pipeline",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
@@ -171,7 +171,7 @@
       "parameters": {
         "jsCode": "return $json.nuevos.map(u => ({ json: u }));"
       },
-      "id": "8ca7b9db-7fc7-40e0-98cb-ddcd927f256d",
+      "id": "4971740c-1a9f-4dcc-a21f-26daa7e6bd6f",
       "name": "Leads nuevos",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -202,7 +202,7 @@
           "cellFormat": "USER_ENTERED"
         }
       },
-      "id": "69c642d8-32e0-4ffb-a4b8-76ca6aad4f1b",
+      "id": "3fff5b9a-9f26-4a2d-8728-2b95b7509b0b",
       "name": "Agregar al pipeline",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
@@ -215,7 +215,7 @@
       "parameters": {
         "jsCode": "return $json.hallazgos.map(h => ({ json: h }));"
       },
-      "id": "40475832-f964-4782-8e3f-908ebf276f90",
+      "id": "7cb5a178-58d7-4552-bac3-a43cd600bb15",
       "name": "Hallazgos a cargar",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -246,7 +246,7 @@
           "cellFormat": "USER_ENTERED"
         }
       },
-      "id": "183a7a47-248a-48be-a529-4e7ea5026f52",
+      "id": "bcaab11f-c4b6-4116-be6e-e405df0d6a6f",
       "name": "Cargar hallazgos",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
@@ -259,7 +259,7 @@
       "parameters": {
         "jsCode": "return $json.crudas.map(r => ({ json: r }));"
       },
-      "id": "1ddd89da-6464-4900-b045-bcd64bc43221",
+      "id": "ba525bc7-0ecb-4194-8d4f-76e0ad7900ab",
       "name": "Respuestas completas",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -290,7 +290,7 @@
           "cellFormat": "USER_ENTERED"
         }
       },
-      "id": "9c0c71ba-4c4d-4fe1-beb2-c473077ced23",
+      "id": "49d13795-bcfc-4968-9b2d-93efb8026bbb",
       "name": "Cargar respuestas",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
@@ -303,7 +303,7 @@
       "parameters": {
         "jsCode": "\nconst avisos = $json.avisos;\nif (!avisos.length) return [];\nconst html = `<div style=\"font-family:Arial,sans-serif;max-width:680px\"><h3>Nuevas respuestas del form</h3><ul>${avisos.map(a => `<li style=\"margin-bottom:14px\">${a}</li>`).join('')}</ul></div>`;\nreturn [{ json: { asunto: `Form: ${avisos.length} respuesta${avisos.length > 1 ? 's' : ''} nueva${avisos.length > 1 ? 's' : ''}`, html } }];\n"
       },
-      "id": "089227be-8c48-4d08-9fb0-4a3d16d0d658",
+      "id": "42d7ce20-6b78-4282-9c80-68cce8969922",
       "name": "Armar aviso",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -322,7 +322,7 @@
           "appendAttribution": false
         }
       },
-      "id": "fa6f8aca-9a70-44fc-a7c2-8a8184284795",
+      "id": "8ffeb7a3-1e86-469e-b43f-be23a05bcb7c",
       "name": "Avisarme",
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.1,
@@ -337,7 +337,7 @@
         "height": 420,
         "width": 520
       },
-      "id": "c1cb8d3d-4b9d-4502-a4be-d5b8dcb506eb",
+      "id": "2f3b94cc-9aac-4b7f-a252-535824cceb7b",
       "name": "Nota",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
