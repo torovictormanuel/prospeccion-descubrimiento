@@ -5,6 +5,7 @@ from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.worksheet.datavalidation import DataValidation
 from openpyxl.formatting.rule import FormulaRule, CellIsRule
 from openpyxl.utils import get_column_letter
+from openpyxl.comments import Comment
 
 SRC = Path(sys.argv[1])
 OUT = SRC / "Pipeline_Ventas.xlsx"
@@ -220,6 +221,12 @@ def tabla(ws, filas, cols, widths):
 def nota(ws, row, txt):
     ws.cell(row=row, column=1, value=txt).font = Font(name=F, italic=True, size=9)
 
+
+def nota_encabezado(ws, txt):
+    # En las hojas que llena n8n la ayuda va como comentario en A1: una fila de texto
+    # en la columna de datos se mezclaría con las respuestas al analizarlas.
+    ws["A1"].comment = Comment(txt, "Pipeline")
+
 # ---------------- Cadencia (LinkedIn semi-automático, modo descubrimiento) ----------------
 cd = wb.create_sheet("Cadencia")
 cad = [
@@ -241,8 +248,8 @@ header(hz, 1, ["Fecha", "ID", "Empresa", "Contacto", "Tema", "Descripción", "Fr
                "Herramienta actual", "Cita textual", "Fuente"],
        [12, 6, 30, 22, 24, 50, 18, 24, 24, 45, 12])
 hz.freeze_panes = "A2"
-nota(hz, 3, "Esta hoja la completa n8n con cada problema que la gente cuenta en el form o por WhatsApp. Las llamadas cargalas a mano con Fuente = 'Llamada'.")
-nota(hz, 4, "Cuando tengas 10-15 filas: ordená por Tema y contá cuántas veces se repite cada uno. El problema que más se repite y más cuesta es el que conviene resolver primero.")
+nota_encabezado(hz, "Esta hoja la completa n8n con cada problema que la gente cuenta en el form o por WhatsApp. Las llamadas cargalas a mano con Fuente = 'Llamada'. "
+                    "Cuando tengas 10-15 filas: ordená por Tema y contá cuántas veces se repite cada uno. El problema que más se repite y más cuesta es el que conviene resolver primero.")
 
 # ---------------- Respuestas form (una fila por respuesta, una columna por pregunta) ----------------
 # Los encabezados salen de form/public/preguntas.js para que coincidan con lo que escribe el workflow 05.
@@ -255,7 +262,7 @@ cols_rf = ["Fecha", "ID", "Código", "Versión", "Segundos", "Estudio", "Nombre"
           [p["id"] for p in _form["preguntas"] if p["id"] not in _excluir]
 header(rf, 1, cols_rf, [12, 6, 11, 11, 9, 28, 22, 18, 26, 16] + [22] * (len(cols_rf) - 10))
 rf.freeze_panes = "B2"
-nota(rf, 3, "La completa n8n (workflow 05). Ideal para tablas dinámicas o para conectar a Power BI y buscar patrones por tamaño de estudio y tipo de cliente.")
+nota_encabezado(rf, "La completa n8n (workflow 05). Ideal para tablas dinámicas o para conectar a Power BI y buscar patrones por tamaño de estudio y tipo de cliente.")
 
 # ---------------- Guion de la llamada (20 min, The Mom Test) ----------------
 gl = wb.create_sheet("Guion llamada")

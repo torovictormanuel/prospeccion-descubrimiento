@@ -60,7 +60,8 @@ class WF:
         self.nodes.append({"parameters": {"content": nota, "height": 420, "width": 520},
                            "id": str(uuid.uuid4()), "name": "Nota", "type": "n8n-nodes-base.stickyNote",
                            "typeVersion": 1, "position": [0, -220]})
-        wf = {"name": self.name, "nodes": self.nodes, "connections": self.conn, "active": False,
+        # id fijo: `n8n import:workflow` lo exige y así reimportar actualiza el mismo workflow
+        wf = {"id": "prosp-" + filename[:2], "name": self.name, "nodes": self.nodes, "connections": self.conn, "active": False,
               "settings": {"executionOrder": "v1", "timezone": "America/Argentina/Buenos_Aires"},
               "pinData": {}, "meta": {"templateCredsSetupCompleted": False}}
         (OUT / filename).write_text(json.dumps(wf, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -127,8 +128,8 @@ def schedule(wf, name, rule, pos=None):
 w = WF("01 Investigador + cola diaria LinkedIn")
 t = schedule(w, "Lunes a viernes 8:30", {"field": "cronExpression", "expression": "30 8 * * 1-5"})
 c = config(w, {
-    "sheetId": "PEGAR_ID_DEL_GOOGLE_SHEET",
-    "miEmail": "TU_EMAIL@gmail.com",
+    "sheetId": "15j36taG-A-YoBL-X6yXd-g1SKke97TjX",
+    "miEmail": "vtoro485@gmail.com",
     "waNumero": "5491153371839",
     "calLink": "https://cal.com/victor-toro-sa1hch/descubrimiento",
     "formUrl": "https://prospeccion-descubrimiento-form.vercel.app",
@@ -342,7 +343,7 @@ w.save("01_investigador_cola_linkedin.json",
 # ════════════════════════════════════════════════════════════
 w = WF("02 Sync agente WhatsApp")
 t = schedule(w, "Cada 15 minutos", {"field": "minutes", "minutesInterval": 15})
-c = config(w, {"sheetId": "PEGAR_ID_DEL_GOOGLE_SHEET", "miEmail": "TU_EMAIL@gmail.com",
+c = config(w, {"sheetId": "15j36taG-A-YoBL-X6yXd-g1SKke97TjX", "miEmail": "vtoro485@gmail.com",
                "agenteUrl": "https://TU-URL-DEL-AGENTE"})
 cur = code(w, "Cursor", r"""
 // Último evento ya procesado. Se guarda en los datos estáticos del workflow
@@ -470,7 +471,7 @@ w.save("02_sync_agente_whatsapp.json",
 # ════════════════════════════════════════════════════════════
 w = WF("03 Sync reservas Cal.com")
 t = schedule(w, "Cada 30 minutos", {"field": "minutes", "minutesInterval": 30})
-c = config(w, {"sheetId": "PEGAR_ID_DEL_GOOGLE_SHEET", "miEmail": "TU_EMAIL@gmail.com"})
+c = config(w, {"sheetId": "15j36taG-A-YoBL-X6yXd-g1SKke97TjX", "miEmail": "vtoro485@gmail.com"})
 tr = w.node("Traer reservas", "n8n-nodes-base.httpRequest", 4.2, {
     "url": "https://api.cal.com/v2/bookings",
     "authentication": "genericCredentialType", "genericAuthType": "httpHeaderAuth",
@@ -545,7 +546,7 @@ w = WF("04 Botones del mail diario")
 t = w.node("Botón del mail", "n8n-nodes-base.webhook", 2,
            {"httpMethod": "GET", "path": "pipeline-accion", "responseMode": "responseNode", "options": {}},
            webhookId=str(uuid.uuid4()))
-c = config(w, {"sheetId": "PEGAR_ID_DEL_GOOGLE_SHEET", "tokenAcciones": "PEGAR_TOKEN_LARGO_ALEATORIO"})
+c = config(w, {"sheetId": "15j36taG-A-YoBL-X6yXd-g1SKke97TjX", "tokenAcciones": "PEGAR_TOKEN_LARGO_ALEATORIO"})
 lp = leer(w, "Leer pipeline")
 ACC = TZ_JS + r"""
 // Aplica el botón que tocaste en el mail. El token evita que otro sitio dispare acciones.
@@ -608,7 +609,7 @@ w.save("04_botones_mail_diario.json",
 # ════════════════════════════════════════════════════════════
 w = WF("05 Sync respuestas del form")
 t = schedule(w, "Cada 15 minutos", {"field": "minutes", "minutesInterval": 15})
-c = config(w, {"sheetId": "PEGAR_ID_DEL_GOOGLE_SHEET", "miEmail": "TU_EMAIL@gmail.com"})
+c = config(w, {"sheetId": "15j36taG-A-YoBL-X6yXd-g1SKke97TjX", "miEmail": "vtoro485@gmail.com"})
 cur = code(w, "Cursor", r"""
 // Última respuesta ya procesada (solo persiste en ejecuciones automáticas).
 return [{ json: { desde_id: $getWorkflowStaticData('global').ultimoId || 0 } }];

@@ -85,7 +85,11 @@ cambialo por el que figure como gratis en https://ai.google.dev/gemini-api/docs/
    ```bash
    python -c "import secrets; print(secrets.token_urlsafe(32))"
    ```
-2. En n8n: *Workflows → Import from file* → importá los 5 JSON de `n8n/`.
+2. En n8n: *Workflows → Import from file* → importá los 5 JSON de `n8n/`, o
+   por consola: `n8n import:workflow --input=n8n/05_sync_respuestas_form.json`.
+   Cada JSON trae un id fijo (`prosp-01` … `prosp-05`): **reimportar pisa el
+   workflow existente**, incluidas las credenciales que le asignaste. Antes
+   de reimportar, exportá el actual (`n8n export:workflow --id=prosp-05 --output=copia.json`).
 3. En cada workflow, abrí el nodo **Config** y completá los valores. Usá el
    **mismo token** en el 01 y el 04, y en el 01 poné la URL del form en
    `formUrl`.
