@@ -119,4 +119,10 @@ const ok = (c, m) => { console.log((c ? 'OK   ' : 'FAIL ') + m); if (!c) process
   ok(o.crudas[0].tareas_tiempo === 'Pedir y perseguir documentación a clientes, Liquidación de sueldos y novedades' && !('consentimiento' in o.crudas[0]), 'fila de Respuestas form con etiquetas');
   ok(o.avisos.length === 2 && o.avisos[1].includes('lead nuevo'), 'avisa ambas respuestas y marca el referido');
   ok(statics[F5].ultimoId === 8, 'cursor del form guardado');
+
+  // Una operación que n8n no conoce no da error: la condición queda siempre en falso.
+  const VALIDAS = { boolean: ['exists', 'notExists', 'empty', 'notEmpty', 'true', 'false', 'equals', 'notEquals'],
+    number: ['exists', 'notExists', 'empty', 'notEmpty', 'equals', 'notEquals', 'gt', 'lt', 'gte', 'lte'] };
+  const ifs = fs.readdirSync(wfDir).filter(f => f.endsWith('.json')).flatMap(f => JSON.parse(fs.readFileSync(`${wfDir}/${f}`, 'utf8')).nodes.filter(n => n.type.endsWith('.if')));
+  ok(ifs.length > 0 && ifs.every(n => n.parameters.conditions.conditions.every(c => (VALIDAS[c.operator.type] || []).includes(c.operator.operation))), 'nodos IF con operaciones válidas de n8n');
 })().catch(e => { console.log('EXCEPCIÓN', e); process.exitCode = 1; });
