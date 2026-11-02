@@ -128,12 +128,12 @@ def schedule(wf, name, rule, pos=None):
 w = WF("01 Investigador + cola diaria LinkedIn")
 t = schedule(w, "Lunes a viernes 8:30", {"field": "cronExpression", "expression": "30 8 * * 1-5"})
 c = config(w, {
-    "sheetId": "15j36taG-A-YoBL-X6yXd-g1SKke97TjX",
+    "sheetId": "1PuwDTHeZ7BntraREG7Hb5QAeK7ZB_c9w3PnjwZAJ2qA",
     "miEmail": "vtoro485@gmail.com",
     "waNumero": "5491153371839",
     "calLink": "https://cal.com/victor-toro-sa1hch/descubrimiento",
     "formUrl": "https://prospeccion-descubrimiento-form.vercel.app",
-    "geminiModelo": "gemini-2.5-flash",
+    "geminiModelo": "gemini-flash-latest",
     "leadsPorDia": 12,
     "tokenAcciones": "PEGAR_TOKEN_LARGO_ALEATORIO",
     "n8nUrl": "http://localhost:5678",
@@ -188,8 +188,8 @@ e1 = code(w, "Elegir leads del día", ELEGIR)
 loop = w.node("Uno por uno", "n8n-nodes-base.splitInBatches", 3, {"options": {}})
 es_lead = w.node("¿Hay lead?", "n8n-nodes-base.if", 2.2, {
     "conditions": {"options": {"caseSensitive": True, "leftValue": "", "typeValidation": "loose", "version": 2},
-                   "conditions": [{"id": str(uuid.uuid4()), "leftValue": "={{ $json.vacio }}", "rightValue": "",
-                                   "operator": {"type": "boolean", "operation": "notTrue", "singleValue": True}}],
+                   "conditions": [{"id": str(uuid.uuid4()), "leftValue": "={{ $json.ID }}", "rightValue": "",
+                                   "operator": {"type": "number", "operation": "exists", "singleValue": True}}],
                    "combinator": "and"}, "options": {}}, [w.x + 240, 160])
 w.x += 240
 gem = w.node("Gemini investiga", "n8n-nodes-base.httpRequest", 4.2, {
@@ -343,7 +343,7 @@ w.save("01_investigador_cola_linkedin.json",
 # ════════════════════════════════════════════════════════════
 w = WF("02 Sync agente WhatsApp")
 t = schedule(w, "Cada 15 minutos", {"field": "minutes", "minutesInterval": 15})
-c = config(w, {"sheetId": "15j36taG-A-YoBL-X6yXd-g1SKke97TjX", "miEmail": "vtoro485@gmail.com",
+c = config(w, {"sheetId": "1PuwDTHeZ7BntraREG7Hb5QAeK7ZB_c9w3PnjwZAJ2qA", "miEmail": "vtoro485@gmail.com",
                "agenteUrl": "https://TU-URL-DEL-AGENTE"})
 cur = code(w, "Cursor", r"""
 // Último evento ya procesado. Se guarda en los datos estáticos del workflow
@@ -471,7 +471,7 @@ w.save("02_sync_agente_whatsapp.json",
 # ════════════════════════════════════════════════════════════
 w = WF("03 Sync reservas Cal.com")
 t = schedule(w, "Cada 30 minutos", {"field": "minutes", "minutesInterval": 30})
-c = config(w, {"sheetId": "15j36taG-A-YoBL-X6yXd-g1SKke97TjX", "miEmail": "vtoro485@gmail.com"})
+c = config(w, {"sheetId": "1PuwDTHeZ7BntraREG7Hb5QAeK7ZB_c9w3PnjwZAJ2qA", "miEmail": "vtoro485@gmail.com"})
 tr = w.node("Traer reservas", "n8n-nodes-base.httpRequest", 4.2, {
     "url": "https://api.cal.com/v2/bookings",
     "authentication": "genericCredentialType", "genericAuthType": "httpHeaderAuth",
@@ -546,7 +546,7 @@ w = WF("04 Botones del mail diario")
 t = w.node("Botón del mail", "n8n-nodes-base.webhook", 2,
            {"httpMethod": "GET", "path": "pipeline-accion", "responseMode": "responseNode", "options": {}},
            webhookId=str(uuid.uuid4()))
-c = config(w, {"sheetId": "15j36taG-A-YoBL-X6yXd-g1SKke97TjX", "tokenAcciones": "PEGAR_TOKEN_LARGO_ALEATORIO"})
+c = config(w, {"sheetId": "1PuwDTHeZ7BntraREG7Hb5QAeK7ZB_c9w3PnjwZAJ2qA", "tokenAcciones": "PEGAR_TOKEN_LARGO_ALEATORIO"})
 lp = leer(w, "Leer pipeline")
 ACC = TZ_JS + r"""
 // Aplica el botón que tocaste en el mail. El token evita que otro sitio dispare acciones.
@@ -609,7 +609,7 @@ w.save("04_botones_mail_diario.json",
 # ════════════════════════════════════════════════════════════
 w = WF("05 Sync respuestas del form")
 t = schedule(w, "Cada 15 minutos", {"field": "minutes", "minutesInterval": 15})
-c = config(w, {"sheetId": "15j36taG-A-YoBL-X6yXd-g1SKke97TjX", "miEmail": "vtoro485@gmail.com"})
+c = config(w, {"sheetId": "1PuwDTHeZ7BntraREG7Hb5QAeK7ZB_c9w3PnjwZAJ2qA", "miEmail": "vtoro485@gmail.com"})
 cur = code(w, "Cursor", r"""
 // Última respuesta ya procesada (solo persiste en ejecuciones automáticas).
 return [{ json: { desde_id: $getWorkflowStaticData('global').ultimoId || 0 } }];

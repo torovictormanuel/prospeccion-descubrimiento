@@ -75,10 +75,12 @@ el trabajo pesado; vos solo hacés clic en "enviar".
 Seguí [`agente-whatsapp/README.md`](../agente-whatsapp/README.md). Probalo
 primero en la terminal con `python tests/test_local.py`.
 
-### 6. Gemini (gratis)
-Creá una API key en https://aistudio.google.com/apikey. Si el modelo de
-`Config → geminiModelo` deja de existir o pierde la búsqueda gratis,
-cambialo por el que figure como gratis en https://ai.google.dev/gemini-api/docs/pricing.
+### 6. Gemini
+Creá una API key en https://aistudio.google.com/apikey. `Config → geminiModelo`
+usa el alias `gemini-flash-latest`, que sigue al modelo vigente. Revisá costos y
+límites en https://ai.google.dev/gemini-api/docs/pricing: si el proyecto está en
+prepago y sin créditos, Gemini responde **402** y el workflow 01 cae a mensajes
+genéricos con "Gemini no respondió" en `Dato investigado`.
 
 ### 7. n8n
 1. Generá un token para los botones del mail (no lo compartas):
