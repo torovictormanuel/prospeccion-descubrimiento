@@ -100,12 +100,27 @@ genéricos con "Gemini no respondió" en `Dato investigado`.
    |---|---|---|
    | Google Sheets | Google Sheets OAuth2 | todos los nodos de Sheets |
    | Gmail | Gmail OAuth2 | nodos "Mandar cola" / "Avisarme" |
-   | Gemini | Header Auth: `x-goog-api-key` = tu key | 01 · Gemini investiga |
+   | Gemini | Header Auth: `x-goog-api-key` = tu key | 01 · Gemini investiga, 06 · Gemini busca |
    | Agente | Header Auth: `X-API-Key` = `SYNC_API_KEY` del agente | 02 · Traer eventos |
-   | Cal.com | Header Auth: `Authorization` = `Bearer cal_live_…` | 03 · Traer reservas |
+   | Cal.com | Header Auth: `Authorization` = `Bearer cal_live_…` | 03 y 07 · Traer reservas |
    | Supabase | Supabase API: host + service role key | 05 · Traer respuestas |
+   | WhatsApp | WhatsApp API | 07 · WhatsApp a la persona |
 5. Abrí cada nodo de Google Sheets una vez para que cargue las columnas.
-6. Activá los 5 workflows.
+6. Activá 01, 03, 04, 05, 06 y 07. El **02 queda pausado**, junto con el agente
+   de WhatsApp: las charlas se agendan por Cal.com.
+
+Dos flujos sumados:
+- **06 Buscador de leads** (lunes a viernes 7:30): busca en Google perfiles
+  públicos de LinkedIn, sin entrar con tu cuenta, y agrega hasta `leadsBuscar`
+  leads nuevos al Pipeline, sin duplicar. Revisá cada perfil antes de escribirle.
+- **07 Recordatorio de charla** (cada 30 minutos): manda mail y WhatsApp 24 h y
+  2 h antes de cada reserva. El WhatsApp necesita una plantilla aprobada por Meta
+  con los parámetros `nombre` y `turno`, y un teléfono: sale de la reserva o del
+  form. Sin teléfono, sale solo el mail.
+
+El flujo *Recordatorio de turno 24hs* (otro proyecto) lee todas las reservas de
+la cuenta de Cal.com. Si mostrás el teléfono en el evento de descubrimiento, esas
+reservas recibirían dos recordatorios: antes hay que excluir el evento en ese flujo.
 
 ### 8. Prueba de punta a punta (antes de escribirle a nadie)
 1. Poné tu propio LinkedIn en una fila de prueba con Prioridad Alta.

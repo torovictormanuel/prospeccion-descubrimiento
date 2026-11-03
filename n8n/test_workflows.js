@@ -120,6 +120,42 @@ const ok = (c, m) => { console.log((c ? 'OK   ' : 'FAIL ') + m); if (!c) process
   ok(o.avisos.length === 2 && o.avisos[1].includes('lead nuevo'), 'avisa ambas respuestas y marca el referido');
   ok(statics[F5].ultimoId === 8, 'cursor del form guardado');
 
+  // 06) Buscador: valida, no duplica y no escribe si la búsqueda falló
+  const F6 = '06_buscador_leads.json';
+  const cfg6 = { leadsBuscar: 10 };
+  const bus = (await run(F6, 'Armar búsqueda', { nodes: { Config: [cfg6] } }))[0].json;
+  ok(bus.geminiBody.tools[0].google_search && bus.ciudad && bus.perfil, 'buscador arma la búsqueda con Google');
+  const previa = [{ ID: 7, Contacto: 'Ana Pérez', Empresa: 'Estudio Pérez', 'LinkedIn / Web': 'https://www.linkedin.com/in/ana-perez/' }];
+  const respuesta = l => ({ candidates: [{ content: { parts: [{ text: JSON.stringify({ leads: l }) }] }, groundingMetadata: { webSearchQueries: ['q'] } }] });
+  const nodos6 = { Config: [cfg6], 'Armar búsqueda': [bus], 'Leer pipeline': previa };
+  const v = (await run(F6, 'Validar leads', { json: respuesta([
+    { nombre: 'Luis Gómez', cargo: 'Socio', empresa: 'Estudio Contable Gómez', linkedin: 'https://ar.linkedin.com/in/luis-gomez?trk=x' },
+    { nombre: 'Ana Pérez', cargo: 'Socia', empresa: 'Estudio Pérez', linkedin: 'https://www.linkedin.com/in/ANA-PEREZ/' },
+    { nombre: 'Marta Díaz', cargo: 'Contadora', empresa: 'Estudio Díaz', linkedin: 'https://www.linkedin.com/company/estudio-diaz/' },
+    { nombre: 'Juan Ruiz', cargo: 'Vendedor', empresa: 'Zapatería Ruiz', linkedin: 'https://www.linkedin.com/in/juan-ruiz/' },
+  ]), nodes: nodos6 }))[0].json;
+  ok(v.nuevos.length === 1 && v.nuevos[0].ID === 8 && v.nuevos[0]['LinkedIn / Web'] === 'https://www.linkedin.com/in/luis-gomez/', 'buscador deja solo el lead nuevo y válido');
+  ok(v.nuevos[0].Prioridad === 'Alta' && v.nuevos[0].Secuencia === 'Activa' && v.nuevos[0].Etapa === '1. Prospecto', 'lead nuevo queda listo para el 01');
+  const caido = (await run(F6, 'Validar leads', { json: { error: { message: '402 sin créditos' } }, nodes: nodos6 }))[0].json;
+  ok(caido.nuevos.length === 0 && caido.asunto.includes('falló'), 'si Gemini falla no agrega leads y avisa');
+  const sinBuscar = (await run(F6, 'Validar leads', { json: { candidates: [{ content: { parts: [{ text: '{"leads":[{"nombre":"X Y","cargo":"Socio","empresa":"Estudio","linkedin":"https://linkedin.com/in/x-y"}]}' }] } }] }, nodes: nodos6 }))[0].json;
+  ok(sinBuscar.nuevos.length === 0, 'descarta respuestas de Gemini que no buscaron en Google');
+
+  // 07) Recordatorios: una vez por reserva, solo del evento correcto y con el teléfono del form
+  const F7 = '07_recordatorio_charla.json';
+  const cfg7 = { eventTypeId: 7696927 };
+  const reserva = (uid, h, extra = {}) => ({ uid, status: 'accepted', eventTypeId: 7696927, start: DateTime.now().plus({ hours: h }).toISO(), attendees: [{ name: 'Luis Gómez', email: 'luis@x.com' }], ...extra });
+  const nodos7 = rs => ({ Config: [cfg7], 'Traer reservas': [{ data: rs }], 'Leer pipeline': [{ ID: 8, Email: 'luis@x.com', WhatsApp: '+5491123456789' }] });
+  const rec1 = await run(F7, 'Elegir recordatorios', { nodes: nodos7([reserva('a', 20), reserva('b', 1), reserva('c', 72), reserva('d', 20, { eventTypeId: 999 }), reserva('e', 20, { status: 'cancelled' })]) });
+  ok(rec1.length === 2 && rec1[0].json.tipo === '24h' && rec1[1].json.tipo === '2h', 'recordatorios: solo reservas aceptadas del evento, a 24 h y 2 h');
+  ok(rec1[0].json.telefono === '5491123456789' && rec1[0].json.nombre === 'Luis', 'recordatorio toma el WhatsApp del form');
+  const rec2 = await run(F7, 'Elegir recordatorios', { nodes: nodos7([reserva('a', 19.5), reserva('b', 0.5)]) });
+  ok(rec2.length === 0, 'no repite un recordatorio ya enviado');
+  const rec3 = await run(F7, 'Elegir recordatorios', { nodes: nodos7([reserva('a', 1.5)]) });
+  ok(rec3.length === 1 && rec3[0].json.tipo === '2h', 'la misma reserva recibe después el de 2 h');
+  const rec4 = await run(F7, 'Elegir recordatorios', { nodes: { Config: [cfg7], 'Traer reservas': [{ data: [reserva('f', 20, { attendees: [{ name: 'Sin Tel', email: 'otra@x.com' }] })] }], 'Leer pipeline': [] } });
+  ok(rec4.length === 1 && rec4[0].json.tieneTelefono === false, 'sin teléfono sale solo el mail');
+
   // Una operación que n8n no conoce no da error: la condición queda siempre en falso.
   const VALIDAS = { boolean: ['exists', 'notExists', 'empty', 'notEmpty', 'true', 'false', 'equals', 'notEquals'],
     number: ['exists', 'notExists', 'empty', 'notEmpty', 'equals', 'notEquals', 'gt', 'lt', 'gte', 'lte'] };

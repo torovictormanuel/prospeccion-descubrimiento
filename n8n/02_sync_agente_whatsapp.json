@@ -1,6 +1,6 @@
 {
   "id": "prosp-02",
-  "name": "02 Sync agente WhatsApp",
+  "name": "02 Sync agente WhatsApp (pausado)",
   "nodes": [
     {
       "parameters": {
@@ -13,7 +13,7 @@
           ]
         }
       },
-      "id": "6fd839c1-2592-4702-b8de-381525b4c2a1",
+      "id": "b2b74cf2-e593-48ac-b6ca-7ed8756ba46e",
       "name": "Cada 15 minutos",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
@@ -28,19 +28,19 @@
         "assignments": {
           "assignments": [
             {
-              "id": "e2902b0a-deb9-4eb4-a7b2-f97e5452e853",
+              "id": "c17cfb8c-9a98-4361-aea8-193a5c8044e4",
               "name": "sheetId",
               "value": "1PuwDTHeZ7BntraREG7Hb5QAeK7ZB_c9w3PnjwZAJ2qA",
               "type": "string"
             },
             {
-              "id": "85b0ecb3-92f3-4e51-b79d-16ad65abc56b",
+              "id": "709c6572-38d4-4334-a28e-48a91affbbcc",
               "name": "miEmail",
               "value": "vtoro485@gmail.com",
               "type": "string"
             },
             {
-              "id": "8a690cce-c47a-4580-8157-b60b536a90cd",
+              "id": "493eacd3-c700-4861-8247-dd533d89487a",
               "name": "agenteUrl",
               "value": "https://TU-URL-DEL-AGENTE",
               "type": "string"
@@ -49,7 +49,7 @@
         },
         "options": {}
       },
-      "id": "d2d1bdae-f5f9-40e5-803a-bcdca3f21e70",
+      "id": "75c2e1a4-257b-4a53-aca2-37c99f2654c3",
       "name": "Config",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
@@ -62,7 +62,7 @@
       "parameters": {
         "jsCode": "\n// Último evento ya procesado. Se guarda en los datos estáticos del workflow\n// (solo persisten en ejecuciones automáticas, no al probar con 'Execute').\nconst s = $getWorkflowStaticData('global');\nreturn [{ json: { desde_id: s.ultimoId || 0 } }];\n"
       },
-      "id": "d244ad9f-989a-40c6-b55d-2121b8a48c10",
+      "id": "69440338-e9a1-4196-bfb2-c19bae68bbd1",
       "name": "Cursor",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -89,7 +89,7 @@
           "timeout": 30000
         }
       },
-      "id": "28abd751-6805-413d-b9e2-ddc3c440e465",
+      "id": "027d891f-04bf-4405-a8a6-b0f70c7ba476",
       "name": "Traer eventos",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -109,7 +109,7 @@
           },
           "conditions": [
             {
-              "id": "7816dccf-ef29-4881-8b82-60eaeb010409",
+              "id": "d0e9cba2-217d-4643-8c75-a1b743db5937",
               "leftValue": "={{ $json.eventos.length }}",
               "rightValue": 0,
               "operator": {
@@ -122,7 +122,7 @@
         },
         "options": {}
       },
-      "id": "3ec77590-3b01-4c47-be33-824d9bd590d1",
+      "id": "d20ccbe4-cf3e-450f-9ef0-a50a94bf0311",
       "name": "¿Hay eventos?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
@@ -146,7 +146,7 @@
         },
         "options": {}
       },
-      "id": "2103dc73-2cfd-4e3b-8bde-f803f7494f1c",
+      "id": "f934d6b3-41d5-4e78-92b9-89e6f9bfd381",
       "name": "Leer pipeline",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
@@ -161,7 +161,7 @@
       "parameters": {
         "jsCode": "const TZ = 'America/Argentina/Buenos_Aires';\n\n// Las fechas de la planilla pueden venir como 28/10/2026, 2026-10-28 o número de serie\nconst parseFecha = v => {\n  if (v === undefined || v === null || v === '') return null;\n  const s = String(v).trim();\n  let m = s.match(/^(\\d{1,2})\\/(\\d{1,2})\\/(\\d{4})/);\n  if (m) return DateTime.fromObject({ year: +m[3], month: +m[2], day: +m[1] }, { zone: TZ });\n  m = s.match(/^(\\d{4})-(\\d{2})-(\\d{2})/);\n  if (m) return DateTime.fromObject({ year: +m[1], month: +m[2], day: +m[3] }, { zone: TZ });\n  if (/^\\d+(\\.\\d+)?$/.test(s)) return DateTime.fromObject({ year: 1899, month: 12, day: 30 }, { zone: TZ }).plus({ days: Math.floor(+s) });\n  return null;\n};\nconst esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\\n/g, '<br>');\n// '3. Conversación' → 3. '10. Nutrir' cuenta como 0 para poder reactivar el lead.\nconst numEtapa = e => { const n = parseInt(String(e || '0'), 10) || 0; return n === 10 ? 0 : n; };\n\n// Traduce los eventos del agente a cambios en la planilla, filas de Hallazgos y avisos.\nconst resp = $('Traer eventos').first().json;\nconst eventos = resp.eventos || [];\nconst filas = $('Leer pipeline').all().map(i => i.json).filter(f => f.ID !== undefined && f.ID !== '');\nconst porId = Object.fromEntries(filas.map(f => [String(f.ID), f]));\nconst porCodigo = Object.fromEntries(filas.filter(f => f['Código']).map(f => [String(f['Código']), f]));\nconst hoy = $now.setZone(TZ).toFormat('yyyy-MM-dd');\nconst updates = {}, hallazgos = [], avisos = [];\n\nfor (const e of eventos) {\n  const d = e.detalle || {};\n  // ref = ID numérico (link de LinkedIn) o Código (link del form)\n  const fila = e.ref ? (porId[String(e.ref)] || porCodigo[String(e.ref)]) : null;\n  const cuando = DateTime.fromISO(e.creado_en).setZone(TZ);\n  const quien = fila ? `${fila['Empresa']} (${fila['Contacto'] || e.nombre || 'sin nombre'})`\n                     : `${e.nombre || 'Alguien'}${e.empresa ? ' de ' + e.empresa : ''} — +${e.telefono} (sin ref)`;\n  const wa = `<a href=\"https://wa.me/${e.telefono}\">abrir chat</a>`;\n\n  if (e.tipo === 'hallazgo') hallazgos.push({\n    'Fecha': cuando.toFormat('yyyy-MM-dd'), 'ID': fila ? fila.ID : '', 'Empresa': fila ? fila['Empresa'] : (e.empresa || ''),\n    'Contacto': fila ? fila['Contacto'] : (e.nombre || ''), 'Tema': d.tema || '', 'Descripción': d.descripcion || '',\n    'Frecuencia': d.frecuencia || '', 'Impacto': d.impacto || '', 'Herramienta actual': d.herramienta_actual || '',\n    'Cita textual': d.cita_textual || '', 'Fuente': 'WhatsApp' });\n\n  if (!fila) {\n    if (['primer_contacto', 'agendado', 'escalar'].includes(e.tipo)) avisos.push(`<b>${e.tipo}</b>: ${esc(quien)} · ${wa}`);\n    continue;\n  }\n  const u = updates[fila.ID] ??= { 'ID': fila.ID };\n  const etapa = () => u['Etapa'] || fila['Etapa'];\n  const subir = nueva => {\n    if (/^(8|9)\\./.test(String(etapa()))) return;\n    if (numEtapa(nueva) > numEtapa(etapa())) u['Etapa'] = nueva;\n  };\n\n  switch (e.tipo) {\n    case 'primer_contacto':\n      subir('3. Conversación');\n      Object.assign(u, { 'Canal': 'WhatsApp', 'WhatsApp': '+' + e.telefono, 'Secuencia': 'Pausada',\n        'Último contacto': cuando.toFormat('yyyy-MM-dd'), 'Próxima acción': 'Conversando con Lía por WhatsApp',\n        'Toques': Number(fila['Toques'] || 0) + 1 });\n      avisos.push(`📲 <b>${esc(quien)}</b> escribió por WhatsApp · ${wa}`);\n      break;\n    case 'datos':\n      if (d.nombre && !fila['Contacto']) u['Contacto'] = d.nombre;\n      if (d.email && !fila['Email']) u['Email'] = d.email;\n      break;\n    case 'hallazgo': {\n      const base = u['Dolor detectado'] ?? fila['Dolor detectado'] ?? '';\n      u['Dolor detectado'] = ((base ? base + ' | ' : '') + `${d.tema}: ${d.descripcion}`).slice(0, 1500);\n      break;\n    }\n    case 'agendado': {\n      const ini = DateTime.fromISO(d.inicio).setZone(TZ);\n      subir('4. Reunión agendada');\n      Object.assign(u, { 'Fecha próx. acción': ini.toFormat('yyyy-MM-dd'),\n        'Próxima acción': `Llamada de descubrimiento ${ini.toFormat('dd/MM HH:mm')}` });\n      avisos.push(`📅 <b>${esc(quien)}</b> agendó la llamada para el <b>${ini.toFormat('dd/MM HH:mm')}</b><br>\n        <span style=\"color:#555\">Lo que ya contó: ${esc(u['Dolor detectado'] ?? fila['Dolor detectado'] ?? '—')}</span>`);\n      break;\n    }\n    case 'no_contactar':\n      Object.assign(u, { 'Etapa': '9. Perdido', 'No contactar': 'SI', 'Secuencia': 'Terminada', 'Próxima acción': '' });\n      avisos.push(`🚫 ${esc(quien)} pidió no ser contactado (${esc(d.motivo)})`);\n      break;\n    case 'escalar':\n      Object.assign(u, { 'Próxima acción': `Responder por WhatsApp: ${d.motivo}`, 'Fecha próx. acción': hoy });\n      avisos.push(`⚠️ <b>${esc(quien)}</b> necesita que le respondas vos: ${esc(d.motivo)} · ${wa}`);\n      break;\n  }\n}\n\n// Se avanza el cursor acá: si una escritura posterior falla, ese lote no se reintenta\n// (queda en el agente y en el mail de aviso, se puede cargar a mano).\n$getWorkflowStaticData('global').ultimoId = resp.ultimo_id;\nreturn [{ json: { updates: Object.values(updates), hallazgos, avisos } }];\n"
       },
-      "id": "29e4f2cd-f877-4bf8-a4fb-df1b7ae64bcf",
+      "id": "e3222a93-8a9b-4940-86c2-6b3430c7c11a",
       "name": "Procesar eventos",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -174,7 +174,7 @@
       "parameters": {
         "jsCode": "return $json.updates.map(u => ({ json: u }));"
       },
-      "id": "e8e6c777-b23e-45a6-9159-ec5d84c27c69",
+      "id": "b899ebe6-3865-46aa-9094-17a61e0168de",
       "name": "Filas a actualizar",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -208,7 +208,7 @@
           "cellFormat": "USER_ENTERED"
         }
       },
-      "id": "438a046e-7a74-47d8-bde5-a6a1bea1df9a",
+      "id": "f7c6112e-62cb-47cf-8d23-cd300082b8d8",
       "name": "Actualizar pipeline",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
@@ -221,7 +221,7 @@
       "parameters": {
         "jsCode": "return $json.hallazgos.map(h => ({ json: h }));"
       },
-      "id": "06f96b40-0722-4c9d-99a5-b7b50f856266",
+      "id": "fb0f8101-ff93-4eef-93bf-7748641fca6b",
       "name": "Hallazgos a cargar",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -252,7 +252,7 @@
           "cellFormat": "USER_ENTERED"
         }
       },
-      "id": "30cc6870-e40f-4112-9a07-aec64862609e",
+      "id": "18ff3f36-07cb-4159-82bf-7a03d2641ada",
       "name": "Cargar hallazgos",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
@@ -265,7 +265,7 @@
       "parameters": {
         "jsCode": "\nconst avisos = $json.avisos;\nif (!avisos.length) return [];\nconst html = `<div style=\"font-family:Arial,sans-serif;max-width:680px\"><ul>${avisos.map(a => `<li style=\"margin-bottom:10px\">${a}</li>`).join('')}</ul></div>`;\nreturn [{ json: { asunto: `Pipeline: ${avisos.length} novedad${avisos.length > 1 ? 'es' : ''} del agente de WhatsApp`, html } }];\n"
       },
-      "id": "8e0c6e1f-484b-4220-a67e-145c996419ee",
+      "id": "4787179c-ca95-43d2-8f37-420022d4d9f4",
       "name": "Armar aviso",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -284,7 +284,7 @@
           "appendAttribution": false
         }
       },
-      "id": "d2a29cf7-deee-4af7-a0c4-1477569bf84d",
+      "id": "dc22414e-9280-4a71-a327-4d60f5ee0452",
       "name": "Avisarme",
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.1,
@@ -299,7 +299,7 @@
         "height": 420,
         "width": 520
       },
-      "id": "f4c84826-0ad2-4299-921e-f36a8267a44c",
+      "id": "290e4c67-ec62-4cfb-a71c-16a43cd77325",
       "name": "Nota",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,

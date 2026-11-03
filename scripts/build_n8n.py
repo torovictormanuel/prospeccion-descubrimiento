@@ -341,7 +341,8 @@ w.save("01_investigador_cola_linkedin.json",
 # ════════════════════════════════════════════════════════════
 # 02 — Sync del agente de WhatsApp → Sheet + avisos
 # ════════════════════════════════════════════════════════════
-w = WF("02 Sync agente WhatsApp")
+# Pausado: Lía no se usa por ahora; las charlas se agendan por Cal.com.
+w = WF("02 Sync agente WhatsApp (pausado)")
 t = schedule(w, "Cada 15 minutos", {"field": "minutes", "minutesInterval": 15})
 c = config(w, {"sheetId": "1PuwDTHeZ7BntraREG7Hb5QAeK7ZB_c9w3PnjwZAJ2qA", "miEmail": "vtoro485@gmail.com",
                "agenteUrl": "https://TU-URL-DEL-AGENTE"})
@@ -717,5 +718,205 @@ w.save("05_sync_respuestas_form.json",
        "2. Credencial **Supabase API** en *Traer respuestas*: Host = URL del proyecto, Service Role Secret = la service role key (queda cifrada en n8n).\n"
        "3. La planilla necesita la hoja **Respuestas form** (ya viene en Pipeline_Ventas.xlsx).\n"
        "4. Activá el workflow: el cursor solo se guarda en ejecuciones automáticas.")
+
+# ════════════════════════════════════════════════════════════
+# 06 — Buscador diario de leads nuevos (Google, vía Gemini)
+# ════════════════════════════════════════════════════════════
+w = WF("06 Buscador de leads")
+t = schedule(w, "Lunes a viernes 7:30", {"field": "cronExpression", "expression": "30 7 * * 1-5"})
+c = config(w, {"sheetId": "1PuwDTHeZ7BntraREG7Hb5QAeK7ZB_c9w3PnjwZAJ2qA", "miEmail": "vtoro485@gmail.com",
+               "geminiModelo": "gemini-flash-latest", "leadsBuscar": 10})
+lp = leer(w, "Leer pipeline")
+BUSCAR = TZ_JS + r"""
+// Arma la búsqueda del día. Rota ciudad y perfil para no repetir siempre los mismos resultados.
+const cfg = $('Config').first().json;
+const CIUDADES = ['Buenos Aires', 'CABA', 'Córdoba', 'Rosario', 'Mendoza', 'La Plata', 'Mar del Plata', 'Tucumán', 'Salta', 'Neuquén', 'Santa Fe', 'Bahía Blanca'];
+const PERFILES = ['socio de estudio contable', 'titular de estudio contable', 'gerente de impuestos en estudio contable', 'responsable de liquidación de sueldos en estudio contable', 'contador público independiente'];
+const dia = $now.setZone(TZ).ordinal;
+const ciudad = CIUDADES[dia % CIUDADES.length];
+const perfil = PERFILES[dia % PERFILES.length];
+const cantidad = Number(cfg.leadsBuscar) || 10;
+const prompt = `Buscá en Google perfiles públicos de LinkedIn de contadores en Argentina.
+Perfil buscado: ${perfil}. Zona: ${ciudad}.
+Usá búsquedas como: site:ar.linkedin.com/in "${perfil}" ${ciudad}
+Quiero hasta ${cantidad} personas que trabajen hoy como contadores o en un estudio contable.
+Reglas:
+- Usá SOLO resultados que hayas visto en la búsqueda. Nunca inventes ni completes una URL, un nombre ni un cargo.
+- La URL tiene que ser de un perfil personal (linkedin.com/in/...), no de una empresa.
+- Si encontrás menos personas, devolvé menos. Si no encontrás ninguna, devolvé la lista vacía.
+Devolvé SOLO un objeto JSON, sin texto extra: {"leads":[{"nombre":"","cargo":"","empresa":"","ubicacion":"","linkedin":""}]}`;
+return [{ json: { ciudad, perfil, geminiBody: { contents: [{ role: 'user', parts: [{ text: prompt }] }],
+  tools: [{ google_search: {} }], generationConfig: { temperature: 0.2 } } } }];
+"""
+ab = code(w, "Armar búsqueda", BUSCAR)
+gem = w.node("Gemini busca", "n8n-nodes-base.httpRequest", 4.2, {
+    "method": "POST",
+    "url": "=https://generativelanguage.googleapis.com/v1beta/models/{{ $('Config').first().json.geminiModelo }}:generateContent",
+    "authentication": "genericCredentialType", "genericAuthType": "httpHeaderAuth",
+    "sendBody": True, "specifyBody": "json", "jsonBody": "={{ JSON.stringify($json.geminiBody) }}",
+    "options": {"timeout": 120000},
+}, onError="continueRegularOutput")
+VALIDAR = TZ_JS + FECHAS_JS + r"""
+// Valida lo que devolvió Gemini y deja solo leads nuevos. Si la búsqueda falló no escribe nada.
+const cfg = $('Config').first().json;
+const busqueda = $('Armar búsqueda').first().json;
+const filas = $('Leer pipeline').all().map(i => i.json).filter(f => f.ID !== undefined && f.ID !== '');
+const hoy = $now.setZone(TZ).toFormat('yyyy-MM-dd');
+const slugDe = u => { const m = String(u || '').match(/linkedin\.com\/in\/([^\/?#\s]+)/i); if (!m) return ''; try { return decodeURIComponent(m[1]).toLowerCase(); } catch (e) { return m[1].toLowerCase(); } };
+const norm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+
+let problema = '';
+let lista = [];
+const fallo = $json.error ? String($json.error.message || $json.error).slice(0, 200) : '';
+const parts = $json.candidates?.[0]?.content?.parts || [];
+const consultas = $json.candidates?.[0]?.groundingMetadata?.webSearchQueries || [];
+if (fallo) problema = `Gemini falló: ${fallo}`;
+else if (!consultas.length) problema = 'Gemini respondió sin buscar en Google, así que descarté la respuesta.';
+else {
+  try {
+    const texto = parts.map(p => p.text || '').join('');
+    lista = JSON.parse(texto.slice(texto.indexOf('{'), texto.lastIndexOf('}') + 1)).leads || [];
+  } catch (e) { problema = 'Gemini devolvió un formato que no pude leer.'; }
+}
+
+const slugs = new Set(filas.map(f => slugDe(f['LinkedIn / Web'])).filter(Boolean));
+const personas = new Set(filas.map(f => norm(f['Contacto']) + '|' + norm(f['Empresa'])));
+let maxId = Math.max(0, ...filas.map(f => Number(f.ID) || 0));
+const nuevos = [];
+let descartados = 0, repetidos = 0;
+for (const l of lista) {
+  const slug = slugDe(l.linkedin);
+  const nombre = String(l.nombre || '').trim();
+  const contexto = `${l.cargo || ''} ${l.empresa || ''}`;
+  if (nuevos.length >= (Number(cfg.leadsBuscar) || 10)) break;
+  if (!slug || nombre.split(/\s+/).length < 2 || !/contad|contab|impuest|estudio|auditor|tribut|sueldos/i.test(contexto)) { descartados++; continue; }
+  const clave = norm(nombre) + '|' + norm(l.empresa);
+  if (slugs.has(slug) || personas.has(clave)) { repetidos++; continue; }
+  slugs.add(slug); personas.add(clave);
+  maxId += 1;
+  nuevos.push({ 'ID': maxId, 'Segmento': 'Estudio contable',
+    'Prioridad': /socio|titular|due[ñn]|director|gerente|fundador/i.test(String(l.cargo)) ? 'Alta' : 'Media',
+    'Empresa': String(l.empresa || '').trim().slice(0, 150) || nombre, 'Contacto': nombre, 'Cargo': String(l.cargo || '').trim().slice(0, 150),
+    'Ubicación': String(l.ubicacion || busqueda.ciudad).trim().slice(0, 100), 'LinkedIn / Web': `https://www.linkedin.com/in/${encodeURI(slug)}/`,
+    'Etapa': '1. Prospecto', 'Toques': 0, 'Secuencia': 'Activa', 'Paso LinkedIn': 0, 'Notas': `Buscador automático ${hoy}: revisar el perfil antes de escribir` });
+}
+
+const items = nuevos.map(n => `<li>${esc(n['Contacto'])} · ${esc(n['Cargo'])} · ${esc(n['Empresa'])} · <a href="${esc(n['LinkedIn / Web'])}">perfil</a></li>`).join('');
+const html = `<div style="font-family:Arial,sans-serif;max-width:680px"><p>Búsqueda de hoy: ${esc(busqueda.perfil)} en ${esc(busqueda.ciudad)}.</p>
+${problema ? `<p style="color:#b00"><b>${esc(problema)}</b> No se agregó ningún lead.</p>` : `<p>${nuevos.length} nuevos · ${repetidos} repetidos · ${descartados} descartados.</p><ul>${items}</ul>`}</div>`;
+const asunto = problema ? 'Buscador de leads: falló la búsqueda' : `Buscador de leads: ${nuevos.length} nuevo${nuevos.length === 1 ? '' : 's'}`;
+return [{ json: { nuevos, asunto, html } }];
+"""
+vl = code(w, "Validar leads", VALIDAR)
+x0 = w.x
+s1 = code(w, "Leads nuevos", "return $json.nuevos.map(u => ({ json: u }));", [x0 + 240, 200])
+a1 = agregar(w, "Agregar al pipeline", "Pipeline", [x0 + 480, 200])
+m1 = mail(w, "Avisarme", [x0 + 240, 400])
+w.chain(t, c, lp, ab, gem, vl)
+w.link(vl, s1)
+w.link(s1, a1)
+w.link(vl, m1)
+w.save("06_buscador_leads.json",
+       "## 06 · Buscador diario de leads\n"
+       "Busca en Google perfiles públicos de LinkedIn. No entra a LinkedIn con tu cuenta.\n"
+       "1. **Config**: `leadsBuscar` es el máximo de leads nuevos por día.\n"
+       "2. Credenciales: Gemini (Header Auth), Google Sheets y Gmail.\n"
+       "3. Corre antes que el 01, que investiga los leads nuevos a las 8:30.\n"
+       "4. Si Gemini falla o no buscó en Google, no agrega nada y te avisa por mail.")
+
+# ════════════════════════════════════════════════════════════
+# 07 — Recordatorios de la charla por mail y WhatsApp
+# ════════════════════════════════════════════════════════════
+w = WF("07 Recordatorio de charla")
+t = schedule(w, "Cada 30 minutos", {"field": "minutes", "minutesInterval": 30})
+c = config(w, {"sheetId": "1PuwDTHeZ7BntraREG7Hb5QAeK7ZB_c9w3PnjwZAJ2qA", "miEmail": "vtoro485@gmail.com",
+               "eventTypeId": 7696927, "phoneNumberId": "1299361246597202",
+               "plantilla": "recordatorio_de_turnos", "plantillaIdioma": "es_AR"})
+tr = w.node("Traer reservas", "n8n-nodes-base.httpRequest", 4.2, {
+    "url": "https://api.cal.com/v2/bookings",
+    "authentication": "genericCredentialType", "genericAuthType": "httpHeaderAuth",
+    "sendQuery": True, "queryParameters": {"parameters": [{"name": "status", "value": "upcoming"}, {"name": "take", "value": "100"}]},
+    "sendHeaders": True, "headerParameters": {"parameters": [{"name": "cal-api-version", "value": "2026-02-25"}]},
+    "options": {"timeout": 30000},
+})
+lp = leer(w, "Leer pipeline")
+RECORDAR = TZ_JS + FECHAS_JS + r"""
+// Recordatorios 24 h y 2 h antes de cada charla, una sola vez por reserva.
+// El teléfono sale de la reserva o, si no está, del WhatsApp que dejó en el form.
+const cfg = $('Config').first().json;
+const s = $getWorkflowStaticData('global');
+s.enviados = s.enviados || [];
+const reservas = $('Traer reservas').first().json.data || [];
+const filas = $('Leer pipeline').all().map(i => i.json).filter(f => f.ID !== undefined && f.ID !== '');
+const porId = Object.fromEntries(filas.map(f => [String(f.ID), f]));
+const porCodigo = Object.fromEntries(filas.filter(f => f['Código']).map(f => [String(f['Código']), f]));
+const porEmail = Object.fromEntries(filas.filter(f => f['Email']).map(f => [String(f['Email']).toLowerCase(), f]));
+const telefonoDe = n => { const d = String(n || '').replace(/\D/g, ''); return d.length === 10 ? '549' + d : d.length >= 11 ? d : ''; };
+const ahora = $now.setZone(TZ);
+const salida = [];
+for (const b of reservas) {
+  if (String(b.status || '').toLowerCase() !== 'accepted') continue;
+  if (String(b.eventTypeId ?? b.eventType?.id) !== String(cfg.eventTypeId)) continue;
+  const ini = DateTime.fromISO(b.start).setZone(TZ);
+  const horas = ini.diff(ahora, 'hours').hours;
+  if (!(horas > 0) || horas > 24) continue;
+  const tipo = horas <= 2 ? '2h' : '24h';
+  if (s.enviados.includes(`${b.uid}:${tipo}`)) continue;
+  s.enviados.push(`${b.uid}:${tipo}`);
+  const inv = (b.attendees || [])[0] || {};
+  if (!inv.email) continue;
+  const fila = (b.metadata?.ref && porId[String(b.metadata.ref)]) || (b.metadata?.codigo && porCodigo[String(b.metadata.codigo)]) || porEmail[String(inv.email).toLowerCase()] || {};
+  const nombre = String(inv.name || fila['Contacto'] || '').split(' ')[0] || 'Hola';
+  const cuando = ini.setLocale('es').toFormat("cccc d 'de' LLLL 'a las' HH:mm");
+  const telefono = telefonoDe(inv.phoneNumber ?? b.bookingFieldsResponses?.attendeePhoneNumber) || telefonoDe(fila['WhatsApp']);
+  salida.push({ json: { uid: b.uid, tipo, nombre, email: inv.email, telefono, tieneTelefono: telefono !== '',
+    turno: `Charla de descubrimiento con Victor Toro, ${cuando}`,
+    asunto: tipo === '2h' ? `Hoy charlamos: ${ini.toFormat('HH:mm')}` : `Recordatorio: charla el ${cuando}`,
+    html: `<div style="font-family:Arial,sans-serif;max-width:600px"><p>Hola ${esc(nombre)},</p>
+      <p>Te recuerdo nuestra charla de descubrimiento: <b>${esc(cuando)}</b> (hora de Argentina).</p>
+      <p>Son 20-30 minutos y no hace falta preparar nada.</p>
+      <p>Si necesitás cambiar el horario, podés hacerlo desde el mail de confirmación de Cal.com.</p><p>¡Gracias!<br>Victor Toro</p></div>` } });
+}
+s.enviados = s.enviados.slice(-500);
+return salida;
+"""
+el = code(w, "Elegir recordatorios", RECORDAR)
+x0 = w.x
+mi = w.node("Mail a la persona", "n8n-nodes-base.gmail", 2.1,
+            {"sendTo": "={{ $json.email }}", "subject": "={{ $json.asunto }}", "emailType": "html",
+             "message": "={{ $json.html }}", "options": {"appendAttribution": False}}, [x0 + 240, 160],
+            onError="continueRegularOutput")
+tt = w.node("¿Tiene WhatsApp?", "n8n-nodes-base.if", 2.2, {
+    "conditions": {"options": {"caseSensitive": True, "leftValue": "", "typeValidation": "loose", "version": 2},
+                   "conditions": [{"id": str(uuid.uuid4()), "leftValue": "={{ $json.tieneTelefono }}", "rightValue": "",
+                                   "operator": {"type": "boolean", "operation": "true", "singleValue": True}}],
+                   "combinator": "and"}, "options": {}}, [x0 + 240, 400])
+wa = w.node("WhatsApp a la persona", "n8n-nodes-base.httpRequest", 4.2, {
+    "method": "POST",
+    "url": "=https://graph.facebook.com/v26.0/{{ $('Config').first().json.phoneNumberId }}/messages",
+    "authentication": "predefinedCredentialType", "nodeCredentialType": "whatsAppApi",
+    "sendBody": True, "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify({ messaging_product: 'whatsapp', to: $json.telefono, type: 'template', template: { name: $('Config').first().json.plantilla, language: { code: $('Config').first().json.plantillaIdioma }, components: [{ type: 'body', parameters: [{ type: 'text', parameter_name: 'nombre', text: $json.nombre }, { type: 'text', parameter_name: 'turno', text: $json.turno }] }] } }) }}",
+    "options": {"timeout": 30000},
+}, [x0 + 480, 400], onError="continueRegularOutput")
+rv = code(w, "Revisar envíos", r"""
+const fallas = $input.all().filter(i => i.json.error);
+if (!fallas.length) return [];
+return [{ json: { asunto: `Recordatorios: ${fallas.length} WhatsApp sin enviar`,
+  html: `<p>No se pudo mandar el WhatsApp de ${fallas.length} recordatorio(s). El mail sí se intentó.</p><p>${String(fallas[0].json.error.message || '').slice(0, 300).replace(/</g, '&lt;')}</p>` } }];
+""", [x0 + 720, 400])
+av = mail(w, "Avisarme", [x0 + 960, 400])
+w.chain(t, c, tr, lp, el)
+w.link(el, mi)
+w.link(el, tt)
+w.link(tt, wa)
+w.chain(wa, rv, av)
+w.save("07_recordatorio_charla.json",
+       "## 07 · Recordatorios de la charla\n"
+       "Manda mail y WhatsApp 24 h y 2 h antes de cada reserva del evento de descubrimiento.\n"
+       "1. Credenciales: Cal.com (Header Auth), Google Sheets, Gmail y WhatsApp.\n"
+       "2. **Config**: `plantilla` tiene que estar aprobada por Meta y usar los parámetros `nombre` y `turno`.\n"
+       "3. El registro de enviados solo se guarda en ejecuciones automáticas: activá el workflow.\n"
+       "4. Sin teléfono en la reserva ni en el form, sale solo el mail.")
 
 print("OK:", sorted(p.name for p in OUT.glob("*.json")))

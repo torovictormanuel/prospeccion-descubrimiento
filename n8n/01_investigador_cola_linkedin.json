@@ -13,7 +13,7 @@
           ]
         }
       },
-      "id": "703e04fb-5751-49a8-acdb-8821fbca0e13",
+      "id": "77f560a3-fa75-4e5f-9bd5-7b26bd1933b0",
       "name": "Lunes a viernes 8:30",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
@@ -28,55 +28,55 @@
         "assignments": {
           "assignments": [
             {
-              "id": "d4ac1849-3887-4554-8166-e036134528f9",
+              "id": "6575da59-9aa5-43e4-98af-a5c73da1ba52",
               "name": "sheetId",
               "value": "1PuwDTHeZ7BntraREG7Hb5QAeK7ZB_c9w3PnjwZAJ2qA",
               "type": "string"
             },
             {
-              "id": "efb2b0fc-2f1a-46b5-b19b-3722eca9300a",
+              "id": "6b8026a6-d460-4066-880b-7996355357b4",
               "name": "miEmail",
               "value": "vtoro485@gmail.com",
               "type": "string"
             },
             {
-              "id": "3ed5f2f4-906b-4886-a83b-978b52966b31",
+              "id": "eee42cd7-55cc-4bc6-a97f-bdb8b3ef4a78",
               "name": "waNumero",
               "value": "5491153371839",
               "type": "string"
             },
             {
-              "id": "805cb3b1-94d8-469f-ae2f-55be6df99641",
+              "id": "ca0fd461-fbaf-4c38-8856-d216e75c7f04",
               "name": "calLink",
               "value": "https://cal.com/victor-toro-sa1hch/descubrimiento",
               "type": "string"
             },
             {
-              "id": "ed818d6b-5e45-43c7-81f6-f30da13c676c",
+              "id": "57a6c0e7-e54d-4c42-8c6f-32753ba9b9b4",
               "name": "formUrl",
               "value": "https://prospeccion-descubrimiento-form.vercel.app",
               "type": "string"
             },
             {
-              "id": "94115d8d-5d2a-472d-b67d-ba6ac6f88c86",
+              "id": "7cfaaa4f-ce0f-4972-a5c6-309b44855592",
               "name": "geminiModelo",
               "value": "gemini-flash-latest",
               "type": "string"
             },
             {
-              "id": "32210139-e31f-49d3-9a81-0947068d22c3",
+              "id": "d79bb7c5-42e6-427d-82ca-c9f4d44edf86",
               "name": "leadsPorDia",
               "value": 12,
               "type": "number"
             },
             {
-              "id": "2155267b-c707-418d-bd0d-741deab6e02a",
+              "id": "9bad418f-b6b3-4aa7-ad4e-3ab95355658b",
               "name": "tokenAcciones",
               "value": "PEGAR_TOKEN_LARGO_ALEATORIO",
               "type": "string"
             },
             {
-              "id": "16e98b80-01a3-4412-9eab-d5630064bf8e",
+              "id": "dec64a69-cec6-47f8-899f-c10c69033ebf",
               "name": "n8nUrl",
               "value": "http://localhost:5678",
               "type": "string"
@@ -85,7 +85,7 @@
         },
         "options": {}
       },
-      "id": "51a62e8b-e3fe-4b8f-90ae-f0ee7d130dd4",
+      "id": "537220f3-81cb-4377-b907-21616374bb92",
       "name": "Config",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
@@ -109,7 +109,7 @@
         },
         "options": {}
       },
-      "id": "70642808-a4a8-4e1e-b2b6-0415049124f6",
+      "id": "b1d2b387-32ce-4ef0-8eec-0bfad47f5019",
       "name": "Leer pipeline",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
@@ -124,7 +124,7 @@
       "parameters": {
         "jsCode": "const TZ = 'America/Argentina/Buenos_Aires';\n\n// Elige los leads a investigar hoy: Activos, sin mensajes todavía y con perfil personal de LinkedIn.\nconst cfg = $('Config').first().json;\nconst peso = { Alta: 0, Media: 1 };  // Baja queda afuera a propósito\nconst filas = $input.all().map(i => i.json).filter(f => f.ID !== undefined && f.ID !== '');\nconst elegidos = filas.filter(f =>\n  String(f['Secuencia'] || '').trim() === 'Activa' &&\n  String(f['No contactar'] || '').toUpperCase() !== 'SI' &&\n  ['1. Prospecto', '2. Contactado'].includes(f['Etapa']) &&\n  Number(f['Paso LinkedIn'] || 0) === 0 &&\n  !String(f['Mensaje 1'] || '').trim() &&\n  /linkedin\\.com\\/in\\//i.test(String(f['LinkedIn / Web'] || '')) &&\n  f['Prioridad'] in peso\n).sort((a, b) => peso[a['Prioridad']] - peso[b['Prioridad']] || Number(a.ID) - Number(b.ID))\n .slice(0, Number(cfg.leadsPorDia) || 12);\n\n// Sin leads nuevos igual hay que pasar por el loop para que salga el mail con los seguimientos\nif (!elegidos.length) return [{ json: { vacio: true } }];\nreturn elegidos.map(f => {\n  const esEstudio = String(f['Segmento']).startsWith('Estudio');\n  const rubro = esEstudio ? 'estudio contable' : 'vendedor/tienda de Mercado Libre';\n  const prompt = `Sos un investigador de prospectos B2B en Argentina. Buscá en Google información PÚBLICA y verificable sobre este ${rubro}:\n- Empresa: ${f['Empresa']}\n- Ubicación: ${f['Ubicación'] || 'Argentina'}\n- Persona: ${f['Contacto'] || '(sin nombre)'} — ${f['Cargo'] || ''}\nNo inventes datos. No uses información privada de LinkedIn.\n\nContexto: Victor Toro es analista de datos y está ESTUDIANDO cómo mejorar los procesos internos de ${esEstudio ? 'los estudios contables de 10 a 50 personas' : 'los vendedores de Mercado Libre'} (qué tareas se repiten, dónde se va el tiempo). NO vende nada: quiere entender el problema antes de proponer soluciones. Para no quitarle tiempo, le pide completar un form de 4 minutos; a cambio ofrece el informe con los resultados de todos y un diagnóstico para su estudio.\n\nDevolvé SOLO un objeto JSON, sin texto extra, con estas claves:\n\"dato\": una frase con un dato real y específico de la empresa (servicios, especialidad, tipo de clientes, antigüedad, novedad). Si no encontrás nada verificable, \"\".\n\"fuente\": URL de donde sacaste el dato, o \"\".\n\"conexion\": nota de solicitud de conexión de LinkedIn, máximo 250 caracteres, sin pitch, que mencione el dato si existe.\n\"mensaje1\": mensaje tras aceptar, máximo 700 caracteres, muy amable. Se presenta como Victor, explica que está estudiando cómo mejorar los procesos internos de los estudios, aclara que no vende nada, pide que complete el form de 4 minutos y ofrece a cambio el informe con los resultados de todos y un diagnóstico para su estudio. Incluí LITERALMENTE el marcador {LINK_FORM} (el form) y, como alternativa si prefiere charlar directo, {LINK_AGENDA}.\n\"mensaje2\": seguimiento de máximo 300 caracteres: recordá el form con {LINK_FORM} y, si no tiene ni 4 minutos, hacé UNA sola pregunta que pueda contestar ahí: cuál es la tarea que más tiempo le saca al equipo cada mes.\n\"cierre\": cierre amable de máximo 250 caracteres, sin insistir, ofreciendo el informe cuando esté listo.\nEspañol rioplatense, con \"vos\", tono cercano y profesional. Tuteá usando su nombre de pila si lo tenés.`;\n  return { json: {\n    ID: f.ID, empresa: f['Empresa'], contacto: f['Contacto'] || '', esEstudio,\n    geminiBody: { contents: [{ role: 'user', parts: [{ text: prompt }] }], tools: [{ google_search: {} }],\n                  generationConfig: { temperature: 0.5 } },\n  } };\n});\n"
       },
-      "id": "01c2a8c9-1c31-46d8-9cee-ea3fbe21ef79",
+      "id": "5111b7a9-53b6-4398-80de-65ca122dc736",
       "name": "Elegir leads del día",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -137,7 +137,7 @@
       "parameters": {
         "options": {}
       },
-      "id": "e3cfa9bf-5693-43a4-9788-3ea6813602f8",
+      "id": "344152ea-62f0-4115-95eb-10d3b43fa72e",
       "name": "Uno por uno",
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
@@ -157,7 +157,7 @@
           },
           "conditions": [
             {
-              "id": "72ae743a-eb11-4be6-bde5-eef3a139fe8f",
+              "id": "76d3094d-342a-4b0c-8741-b4afcebd6faa",
               "leftValue": "={{ $json.ID }}",
               "rightValue": "",
               "operator": {
@@ -171,7 +171,7 @@
         },
         "options": {}
       },
-      "id": "45bde148-e9b3-40e7-a4f6-894b2f373932",
+      "id": "380f8658-a720-46dd-bc67-3597e6ed58e2",
       "name": "¿Hay lead?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
@@ -193,7 +193,7 @@
           "timeout": 90000
         }
       },
-      "id": "3ca9067a-b0bf-48cc-9ce4-d39d6b29ed2d",
+      "id": "a3f6a5f6-7d9b-454f-8d52-5be71b66edc4",
       "name": "Gemini investiga",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -208,7 +208,7 @@
         "jsCode": "const TZ = 'America/Argentina/Buenos_Aires';\n\n// Convierte la respuesta de Gemini en los textos finales, con los links reales.\n// Si Gemini falló o devolvió algo raro, se usan plantillas por defecto.\nconst cfg = $('Config').first().json;\nconst lead = $('Uno por uno').item.json;\nconst id = String(lead.ID);\nconst hoy = $now.setZone(TZ).toFormat('yyyy-MM-dd');\nconst waLink = `https://wa.me/${cfg.waNumero}?text=${encodeURIComponent(`Hola Victor, vengo de LinkedIn (ref ${id})`)}`;\nconst agendaLink = `${cfg.calLink}?metadata[ref]=${id}&notes=${encodeURIComponent('ref ' + id)}`;\n// Código aleatorio para el link del form: identifica al lead sin exponer su ID ni datos personales\nconst ABC = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';\nconst codigo = Array.from({ length: 8 }, () => ABC[Math.floor(Math.random() * ABC.length)]).join('');\nconst formLink = `${String(cfg.formUrl).replace(/\\/$/, '')}/?c=${codigo}&f=linkedin`;\n\nlet r = {};\ntry {\n  const texto = ($json.candidates?.[0]?.content?.parts || []).map(p => p.text || '').join('');\n  r = JSON.parse(texto.slice(texto.indexOf('{'), texto.lastIndexOf('}') + 1));\n} catch (e) { r = {}; }\n\nconst nombre = String(lead.contacto || '').split(' ')[0];\nconst hola = nombre ? `Hola ${nombre}` : 'Hola';\nconst rubro = lead.esEstudio ? 'los estudios contables de 10 a 50 personas' : 'los vendedores de Mercado Libre';\nconst def = {\n  conexion: `${hola}, estoy estudiando cómo mejorar los procesos internos de ${rubro} en Argentina y me gustaría sumarte a mi red.`,\n  mensaje1: `${hola}, ¡gracias por conectar! Soy Victor Toro, analista de datos. Estoy estudiando cómo mejorar los procesos internos de ${rubro}: qué tareas se repiten todos los meses y dónde se va el tiempo del equipo. No vendo nada: quiero entender bien el problema antes de proponer soluciones.\\n\\nPara no quitarte tiempo armé un form de 4 minutos: {LINK_FORM}\\n\\nA cambio te mando el informe con los resultados de todos los estudios y, si querés, un diagnóstico con ideas para el tuyo. Si preferís charlarlo directo, 20 min: {LINK_AGENDA}`,\n  mensaje2: `${hola}, ¿pudiste ver el form? ({LINK_FORM}) Si no tenés ni 4 minutos, me sirve igual que me contestes solo esto: ¿cuál es la tarea que más tiempo le saca a tu equipo cada mes?`,\n  cierre: `${hola}, no te escribo más sobre esto. Si en algún momento querés contarme cómo trabajan o recibir el informe cuando esté listo, respondeme por acá. ¡Gracias!`,\n};\nconst reemplazar = s => String(s).split('{LINK_FORM}').join(formLink).split('{LINK_AGENDA}').join(agendaLink).split('{LINK_WHATSAPP}').join(waLink);\nconst txt = k => reemplazar(String(r[k] || '').trim() || def[k]);\nlet m1 = txt('mensaje1');\nif (!m1.includes(formLink)) m1 = reemplazar(def.mensaje1);  // el link del form es obligatorio\n\nreturn { json: {\n  'ID': lead.ID,\n  'Dato investigado': r.dato ? `${r.dato}${r.fuente ? ' (' + r.fuente + ')' : ''}` : ($json.error ? 'Gemini no respondió: revisar a mano' : ''),\n  'Mensaje conexión': txt('conexion').slice(0, 295),\n  'Mensaje 1': m1,\n  'Mensaje 2': txt('mensaje2'),\n  'Mensaje cierre': txt('cierre'),\n  'Link WhatsApp': waLink,\n  'Link agenda': agendaLink,\n  'Código': codigo,\n  'Link form': formLink,\n  'Próxima acción': 'Enviar solicitud de conexión en LinkedIn',\n  'Fecha próx. acción': hoy,\n} };\n",
         "mode": "runOnceForEachItem"
       },
-      "id": "2c558b17-35e5-436b-b240-a464a6384a27",
+      "id": "00b766ff-7c76-4d45-848c-072d6ca36922",
       "name": "Armar mensajes",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -242,7 +242,7 @@
           "cellFormat": "USER_ENTERED"
         }
       },
-      "id": "4f7dd344-d980-4e1d-a239-cbb9e3566f62",
+      "id": "df72ec48-10cf-4dd6-a6c0-81ddd86a9612",
       "name": "Guardar mensajes",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
@@ -256,7 +256,7 @@
         "amount": 5,
         "unit": "seconds"
       },
-      "id": "8c154def-96a5-4134-9045-ee302eb25c06",
+      "id": "61590ec2-45b4-4d87-9a3d-46ace6ae57fd",
       "name": "Pausa (límite Gemini gratis)",
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
@@ -264,7 +264,7 @@
         2400,
         160
       ],
-      "webhookId": "649a0f12-5c32-419c-a0a5-b73cbee1f92a"
+      "webhookId": "08e9701f-5f62-49c7-b366-7ec21c80af56"
     },
     {
       "parameters": {
@@ -281,7 +281,7 @@
         },
         "options": {}
       },
-      "id": "e3fbb7f6-e52c-4b21-a5f8-895d18291e6c",
+      "id": "c89a4e90-e618-47ee-af0a-43c1a404ca44",
       "name": "Leer pipeline actualizado",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
@@ -296,7 +296,7 @@
       "parameters": {
         "jsCode": "const TZ = 'America/Argentina/Buenos_Aires';\n\n// Las fechas de la planilla pueden venir como 28/10/2026, 2026-10-28 o número de serie\nconst parseFecha = v => {\n  if (v === undefined || v === null || v === '') return null;\n  const s = String(v).trim();\n  let m = s.match(/^(\\d{1,2})\\/(\\d{1,2})\\/(\\d{4})/);\n  if (m) return DateTime.fromObject({ year: +m[3], month: +m[2], day: +m[1] }, { zone: TZ });\n  m = s.match(/^(\\d{4})-(\\d{2})-(\\d{2})/);\n  if (m) return DateTime.fromObject({ year: +m[1], month: +m[2], day: +m[3] }, { zone: TZ });\n  if (/^\\d+(\\.\\d+)?$/.test(s)) return DateTime.fromObject({ year: 1899, month: 12, day: 30 }, { zone: TZ }).plus({ days: Math.floor(+s) });\n  return null;\n};\nconst esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\\n/g, '<br>');\n// '3. Conversación' → 3. '10. Nutrir' cuenta como 0 para poder reactivar el lead.\nconst numEtapa = e => { const n = parseInt(String(e || '0'), 10) || 0; return n === 10 ? 0 : n; };\n\n// Arma el mail con las tareas de LinkedIn de hoy. Cada tarea trae el mensaje listo\n// y botones que actualizan la planilla (workflow 04).\nconst cfg = $('Config').first().json;\nconst hoy = $now.setZone(TZ).startOf('day');\nconst filas = $input.all().map(i => i.json).filter(f => f.ID !== undefined && f.ID !== '');\nconst vence = f => { const d = parseFecha(f['Fecha próx. acción']); return !d || d <= hoy; };\nconst url = (f, accion, paso = '') =>\n  `${cfg.n8nUrl}/webhook/pipeline-accion?id=${encodeURIComponent(f.ID)}&accion=${accion}&paso=${paso}&t=${encodeURIComponent(cfg.tokenAcciones)}`;\nconst btn = (href, texto, color) =>\n  `<a href=\"${href}\" style=\"display:inline-block;margin:4px 6px 0 0;padding:6px 12px;border-radius:6px;background:${color};color:#fff;text-decoration:none;font-size:13px\">${texto}</a>`;\n\nconst PASOS = {\n  0: { col: 'Mensaje conexión', titulo: '1 · Enviá la solicitud de conexión', sig: 1 },\n  1: { col: 'Mensaje 1', titulo: '2 · Si aceptó, mandá el Mensaje 1', sig: 2 },\n  2: { col: 'Mensaje 2', titulo: '3 · Seguimiento con una sola pregunta', sig: 3 },\n  3: { col: 'Mensaje cierre', titulo: '4 · Mensaje de cierre', sig: 4 },\n};\nconst activos = filas.filter(f =>\n  String(f['Secuencia'] || '') === 'Activa' && String(f['No contactar'] || '').toUpperCase() !== 'SI' &&\n  ['1. Prospecto', '2. Contactado'].includes(f['Etapa']) && String(f['Mensaje 1'] || '').trim());\n\nlet html = `<div style=\"font-family:Arial,sans-serif;max-width:680px\">`;\nlet total = 0;\nfor (const [paso, p] of Object.entries(PASOS)) {\n  const lista = activos.filter(f => Number(f['Paso LinkedIn'] || 0) === Number(paso) && vence(f));\n  if (!lista.length) continue;\n  total += lista.length;\n  html += `<h3 style=\"margin:24px 0 8px\">${p.titulo} (${lista.length})</h3>`;\n  for (const f of lista) {\n    html += `<div style=\"border:1px solid #ddd;border-radius:8px;padding:12px;margin-bottom:10px\">\n      <b>${esc(f['Empresa'])}</b> — ${esc(f['Contacto'])} <span style=\"color:#666\">${esc(f['Cargo'])}</span><br>\n      <a href=\"${esc(f['LinkedIn / Web'])}\">Abrir perfil de LinkedIn</a>\n      ${f['Dato investigado'] ? `<div style=\"color:#555;font-size:12px;margin-top:4px\">🔎 ${esc(f['Dato investigado'])}</div>` : ''}\n      <div style=\"background:#f6f8fa;border-radius:6px;padding:10px;margin-top:8px;font-size:14px\">${esc(f[p.col])}</div>\n      ${btn(url(f, 'enviado', p.sig), '✅ Enviado', '#2e7d32')}\n      ${Number(paso) === 1 ? btn(url(f, 'esperar'), '⏳ Todavía no aceptó', '#757575') : ''}\n      ${Number(paso) > 0 ? btn(url(f, 'respondio'), '💬 Respondió', '#1565c0') : ''}\n      ${btn(url(f, 'descartar'), '✖ Descartar', '#c62828')}\n    </div>`;\n  }\n}\n\n// Leads que necesitan que respondas vos (escalados por el agente o que contestaron en LinkedIn)\nconst tuyos = filas.filter(f => /^Responder/i.test(String(f['Próxima acción'] || '')) && vence(f) && !String(f['Etapa']).startsWith('9.'));\nif (tuyos.length) {\n  html += `<h3 style=\"margin:24px 0 8px\">💬 Te toca responder (${tuyos.length})</h3><ul>`;\n  for (const f of tuyos) html += `<li><b>${esc(f['Empresa'])}</b> — ${esc(f['Próxima acción'])}${f['WhatsApp'] ? ` · <a href=\"https://wa.me/${String(f['WhatsApp']).replace(/\\D/g, '')}\">WhatsApp</a>` : ''}</li>`;\n  html += `</ul>`;\n}\n\n// Leads Activos sin perfil personal: hay que buscar al decisor a mano\nconst sinPerfil = filas.filter(f => String(f['Secuencia']) === 'Activa' && ['Alta', 'Media'].includes(f['Prioridad']) &&\n  String(f['Etapa']) === '1. Prospecto' && !/linkedin\\.com\\/in\\//i.test(String(f['LinkedIn / Web'] || ''))).slice(0, 5);\nif (sinPerfil.length) {\n  html += `<h3 style=\"margin:24px 0 8px\">🔍 Buscá al socio o dueño (5 de ${filas.filter(f => String(f['Secuencia']) === 'Activa' && !/linkedin\\.com\\/in\\//i.test(String(f['LinkedIn / Web'] || ''))).length})</h3>\n    <p style=\"font-size:13px;color:#555\">Pegá su perfil en la columna \"LinkedIn / Web\" y su nombre en \"Contacto\". Mañana el investigador le arma los mensajes.</p><ul>`;\n  for (const f of sinPerfil) html += `<li>${esc(f['Empresa'])} — ${esc(f['Ubicación'])}${f['LinkedIn / Web'] ? ` · <a href=\"${esc(f['LinkedIn / Web'])}\">página actual</a>` : ''}</li>`;\n  html += `</ul>`;\n}\nhtml += `<p style=\"color:#888;font-size:12px;margin-top:24px\">Los botones funcionan en la PC donde corre n8n. Si cerraste n8n, actualizá la planilla a mano.</p></div>`;\n\nif (!total && !tuyos.length && !sinPerfil.length) return [];\nreturn [{ json: { asunto: `Prospección de hoy: ${total} mensajes de LinkedIn${tuyos.length ? ` + ${tuyos.length} para responder` : ''}`, html } }];\n"
       },
-      "id": "be009fe8-c98f-4549-b486-991f86751fe5",
+      "id": "adae2f27-6047-409c-a8a5-a01b6584ef99",
       "name": "Armar cola del día",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -315,7 +315,7 @@
           "appendAttribution": false
         }
       },
-      "id": "69c355c1-e207-4d57-8923-3881275a5192",
+      "id": "6d1fb849-583f-4297-80c5-734aac064215",
       "name": "Mandar cola por mail",
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.1,
@@ -330,7 +330,7 @@
         "height": 420,
         "width": 520
       },
-      "id": "3e198586-546c-4876-9e90-70939960273f",
+      "id": "458eefd8-e8bc-472b-8e89-57a86273b806",
       "name": "Nota",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
