@@ -831,7 +831,7 @@ w = WF("07 Recordatorio de charla")
 t = schedule(w, "Cada 30 minutos", {"field": "minutes", "minutesInterval": 30})
 c = config(w, {"sheetId": "1PuwDTHeZ7BntraREG7Hb5QAeK7ZB_c9w3PnjwZAJ2qA", "miEmail": "vtoro485@gmail.com",
                "eventTypeId": 7696927, "phoneNumberId": "1299361246597202",
-               "plantilla": "recordatorio_de_turnos", "plantillaIdioma": "es_AR"})
+               "plantilla": "recordatorio_charla_descubrimiento", "plantillaIdioma": "es_AR"})
 tr = w.node("Traer reservas", "n8n-nodes-base.httpRequest", 4.2, {
     "url": "https://api.cal.com/v2/bookings",
     "authentication": "genericCredentialType", "genericAuthType": "httpHeaderAuth",
