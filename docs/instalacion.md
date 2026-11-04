@@ -79,8 +79,8 @@ primero en la terminal con `python tests/test_local.py`.
 Creá una API key en https://aistudio.google.com/apikey. `Config → geminiModelo`
 usa el alias `gemini-flash-latest`, que sigue al modelo vigente. Revisá costos y
 límites en https://ai.google.dev/gemini-api/docs/pricing: si el proyecto está en
-prepago y sin créditos, Gemini responde **402** y el workflow 01 cae a mensajes
-genéricos con "Gemini no respondió" en `Dato investigado`.
+prepago y sin créditos, Gemini responde **402**: el workflow 01 no toca esos leads,
+los reintenta el próximo día y te lo avisa en el mail.
 
 ### 7. n8n
 1. Generá un token para los botones del mail (no lo compartas):

@@ -13,7 +13,7 @@
           ]
         }
       },
-      "id": "66027759-7aa0-4d65-b230-aed67e0adb91",
+      "id": "07c8428a-2f26-4301-86c0-40414971ca82",
       "name": "Cada 30 minutos",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
@@ -28,37 +28,37 @@
         "assignments": {
           "assignments": [
             {
-              "id": "da752ba9-6bfe-4b3a-b57e-9739e1b9a18d",
+              "id": "1891d60b-a0b9-49c0-9dda-9105aaef3a06",
               "name": "sheetId",
               "value": "1PuwDTHeZ7BntraREG7Hb5QAeK7ZB_c9w3PnjwZAJ2qA",
               "type": "string"
             },
             {
-              "id": "2ec62b32-af9e-4419-9ce8-975f63cf0489",
+              "id": "660487eb-28d1-40e2-97f8-e65ca640bac8",
               "name": "miEmail",
               "value": "vtoro485@gmail.com",
               "type": "string"
             },
             {
-              "id": "a8bd4bc6-9239-451f-b2ee-97eac3d16b3d",
+              "id": "b652318f-d013-4fc0-a375-195a008389fc",
               "name": "eventTypeId",
               "value": 7696927,
               "type": "number"
             },
             {
-              "id": "6d805c18-3370-4029-8047-ad2e3062f82a",
+              "id": "3dae6122-fcbf-4058-adaa-4dfde5b0773d",
               "name": "phoneNumberId",
               "value": "1299361246597202",
               "type": "string"
             },
             {
-              "id": "db946e18-a5b9-4e4c-bf20-e709b1bb344d",
+              "id": "93318ad3-5473-422b-b4d3-a579d0586376",
               "name": "plantilla",
               "value": "recordatorio_charla_descubrimiento",
               "type": "string"
             },
             {
-              "id": "8e181a17-f999-4075-9cdb-54cad43d6bbc",
+              "id": "ff8860fe-5f00-4252-8125-2e6fb424e589",
               "name": "plantillaIdioma",
               "value": "es_AR",
               "type": "string"
@@ -67,7 +67,7 @@
         },
         "options": {}
       },
-      "id": "1f988580-c210-4bab-a97e-741c2a2803a5",
+      "id": "e09281d0-2971-4ee5-8254-e75bc4f81017",
       "name": "Config",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
@@ -107,7 +107,7 @@
           "timeout": 30000
         }
       },
-      "id": "6023037a-9e50-4661-9768-f05f40146711",
+      "id": "5b41ab46-bef3-4e9b-9344-67b6f3af985c",
       "name": "Traer reservas",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -131,7 +131,7 @@
         },
         "options": {}
       },
-      "id": "5b109a42-97b8-4243-b2fa-f2291d464eb6",
+      "id": "01e4b520-c804-4d35-b335-a96020ec262e",
       "name": "Leer pipeline",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
@@ -146,7 +146,7 @@
       "parameters": {
         "jsCode": "const TZ = 'America/Argentina/Buenos_Aires';\n\n// Las fechas de la planilla pueden venir como 28/10/2026, 2026-10-28 o número de serie\nconst parseFecha = v => {\n  if (v === undefined || v === null || v === '') return null;\n  const s = String(v).trim();\n  let m = s.match(/^(\\d{1,2})\\/(\\d{1,2})\\/(\\d{4})/);\n  if (m) return DateTime.fromObject({ year: +m[3], month: +m[2], day: +m[1] }, { zone: TZ });\n  m = s.match(/^(\\d{4})-(\\d{2})-(\\d{2})/);\n  if (m) return DateTime.fromObject({ year: +m[1], month: +m[2], day: +m[3] }, { zone: TZ });\n  if (/^\\d+(\\.\\d+)?$/.test(s)) return DateTime.fromObject({ year: 1899, month: 12, day: 30 }, { zone: TZ }).plus({ days: Math.floor(+s) });\n  return null;\n};\nconst esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\\n/g, '<br>');\n// '3. Conversación' → 3. '10. Nutrir' cuenta como 0 para poder reactivar el lead.\nconst numEtapa = e => { const n = parseInt(String(e || '0'), 10) || 0; return n === 10 ? 0 : n; };\n\n// Recordatorios 24 h y 2 h antes de cada charla, una sola vez por reserva.\n// El teléfono sale de la reserva o, si no está, del WhatsApp que dejó en el form.\nconst cfg = $('Config').first().json;\nconst s = $getWorkflowStaticData('global');\ns.enviados = s.enviados || [];\nconst reservas = $('Traer reservas').first().json.data || [];\nconst filas = $('Leer pipeline').all().map(i => i.json).filter(f => f.ID !== undefined && f.ID !== '');\nconst porId = Object.fromEntries(filas.map(f => [String(f.ID), f]));\nconst porCodigo = Object.fromEntries(filas.filter(f => f['Código']).map(f => [String(f['Código']), f]));\nconst porEmail = Object.fromEntries(filas.filter(f => f['Email']).map(f => [String(f['Email']).toLowerCase(), f]));\nconst telefonoDe = n => { const d = String(n || '').replace(/\\D/g, ''); return d.length === 10 ? '549' + d : d.length >= 11 ? d : ''; };\nconst ahora = $now.setZone(TZ);\nconst salida = [];\nfor (const b of reservas) {\n  if (String(b.status || '').toLowerCase() !== 'accepted') continue;\n  if (String(b.eventTypeId ?? b.eventType?.id) !== String(cfg.eventTypeId)) continue;\n  const ini = DateTime.fromISO(b.start).setZone(TZ);\n  const horas = ini.diff(ahora, 'hours').hours;\n  if (!(horas > 0) || horas > 24) continue;\n  const tipo = horas <= 2 ? '2h' : '24h';\n  if (s.enviados.includes(`${b.uid}:${tipo}`)) continue;\n  s.enviados.push(`${b.uid}:${tipo}`);\n  const inv = (b.attendees || [])[0] || {};\n  if (!inv.email) continue;\n  const fila = (b.metadata?.ref && porId[String(b.metadata.ref)]) || (b.metadata?.codigo && porCodigo[String(b.metadata.codigo)]) || porEmail[String(inv.email).toLowerCase()] || {};\n  const nombre = String(inv.name || fila['Contacto'] || '').split(' ')[0] || 'Hola';\n  const cuando = ini.setLocale('es').toFormat(\"cccc d 'de' LLLL 'a las' HH:mm\");\n  const telefono = telefonoDe(inv.phoneNumber ?? b.bookingFieldsResponses?.attendeePhoneNumber) || telefonoDe(fila['WhatsApp']);\n  salida.push({ json: { uid: b.uid, tipo, nombre, email: inv.email, telefono, tieneTelefono: telefono !== '',\n    turno: `Charla de descubrimiento con Victor Toro, ${cuando}`,\n    asunto: tipo === '2h' ? `Hoy charlamos: ${ini.toFormat('HH:mm')}` : `Recordatorio: charla el ${cuando}`,\n    html: `<div style=\"font-family:Arial,sans-serif;max-width:600px\"><p>Hola ${esc(nombre)},</p>\n      <p>Te recuerdo nuestra charla de descubrimiento: <b>${esc(cuando)}</b> (hora de Argentina).</p>\n      <p>Son 20-30 minutos y no hace falta preparar nada.</p>\n      <p>Si necesitás cambiar el horario, podés hacerlo desde el mail de confirmación de Cal.com.</p><p>¡Gracias!<br>Victor Toro</p></div>` } });\n}\ns.enviados = s.enviados.slice(-500);\nreturn salida;\n"
       },
-      "id": "63da8a4a-2018-4c1d-a888-4dcf68bed4ab",
+      "id": "dbc0c226-0802-4d2a-96f3-cae4a91ad56c",
       "name": "Elegir recordatorios",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -165,7 +165,7 @@
           "appendAttribution": false
         }
       },
-      "id": "7ab56061-3982-4a21-9303-46610cc43fbd",
+      "id": "1b92cb0f-527c-4896-a7ea-d830c92a1eb7",
       "name": "Mail a la persona",
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.1,
@@ -186,7 +186,7 @@
           },
           "conditions": [
             {
-              "id": "bc2720c7-defa-4610-a1a7-95e3e7297584",
+              "id": "3762751d-eaa4-4d55-8cfa-28fab96b3f6e",
               "leftValue": "={{ $json.tieneTelefono }}",
               "rightValue": "",
               "operator": {
@@ -200,7 +200,7 @@
         },
         "options": {}
       },
-      "id": "9e3f19e7-be4c-45ea-b5c0-911d39d6e8eb",
+      "id": "c7429303-1b21-4887-b5f9-048c62369661",
       "name": "¿Tiene WhatsApp?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
@@ -222,7 +222,7 @@
           "timeout": 30000
         }
       },
-      "id": "b8405ffb-04b2-4442-a0a5-2890158e3b88",
+      "id": "e89d82bd-da13-4a27-aa42-094e40635a2f",
       "name": "WhatsApp a la persona",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -236,7 +236,7 @@
       "parameters": {
         "jsCode": "\nconst fallas = $input.all().filter(i => i.json.error);\nif (!fallas.length) return [];\nreturn [{ json: { asunto: `Recordatorios: ${fallas.length} WhatsApp sin enviar`,\n  html: `<p>No se pudo mandar el WhatsApp de ${fallas.length} recordatorio(s). El mail sí se intentó.</p><p>${String(fallas[0].json.error.message || '').slice(0, 300).replace(/</g, '&lt;')}</p>` } }];\n"
       },
-      "id": "55bc54a3-7d31-4d7b-a8c6-898ceab4b111",
+      "id": "9ca33e9b-afdf-4a19-a5b3-21ed03ba77c6",
       "name": "Revisar envíos",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -255,7 +255,7 @@
           "appendAttribution": false
         }
       },
-      "id": "ae94e0be-a645-4673-b59b-321149973e50",
+      "id": "cf40f9a3-6926-4cfd-89c9-30eea429677b",
       "name": "Avisarme",
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.1,
@@ -270,7 +270,7 @@
         "height": 420,
         "width": 520
       },
-      "id": "2209e906-c0dd-4e45-958c-c64cce67e7dc",
+      "id": "7d278c29-bced-4ad5-b3f2-d19ab00c8c89",
       "name": "Nota",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,

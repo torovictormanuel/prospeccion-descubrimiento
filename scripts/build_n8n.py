@@ -143,6 +143,7 @@ l1 = leer(w, "Leer pipeline")
 ELEGIR = TZ_JS + r"""
 // Elige los leads a investigar hoy: Activos, sin mensajes todavía y con perfil personal de LinkedIn.
 const cfg = $('Config').first().json;
+$getWorkflowStaticData('global').sinInvestigar = [];
 const peso = { Alta: 0, Media: 1 };  // Baja queda afuera a propósito
 const filas = $input.all().map(i => i.json).filter(f => f.ID !== undefined && f.ID !== '');
 const elegidos = filas.filter(f =>
@@ -202,7 +203,8 @@ gem = w.node("Gemini investiga", "n8n-nodes-base.httpRequest", 4.2, {
 
 ARMAR = TZ_JS + r"""
 // Convierte la respuesta de Gemini en los textos finales, con los links reales.
-// Si Gemini falló o devolvió algo raro, se usan plantillas por defecto.
+// Si Gemini falló, no escribe nada: el lead queda sin mensajes y se reintenta el próximo día.
+// Si respondió pero le falta algún texto, ese texto sale de la plantilla por defecto.
 const cfg = $('Config').first().json;
 const lead = $('Uno por uno').item.json;
 const id = String(lead.ID);
@@ -220,6 +222,11 @@ try {
   r = JSON.parse(texto.slice(texto.indexOf('{'), texto.lastIndexOf('}') + 1));
 } catch (e) { r = {}; }
 
+if ($json.error || !Object.keys(r).length) {
+  $getWorkflowStaticData('global').sinInvestigar.push(lead.empresa || id);
+  return { json: { ID: lead.ID } };
+}
+
 const nombre = String(lead.contacto || '').split(' ')[0];
 const hola = nombre ? `Hola ${nombre}` : 'Hola';
 const rubro = lead.esEstudio ? 'los estudios contables de 10 a 50 personas' : 'los vendedores de Mercado Libre';
@@ -236,7 +243,7 @@ if (!m1.includes(formLink)) m1 = reemplazar(def.mensaje1);  // el link del form 
 
 return { json: {
   'ID': lead.ID,
-  'Dato investigado': r.dato ? `${r.dato}${r.fuente ? ' (' + r.fuente + ')' : ''}` : ($json.error ? 'Gemini no respondió: revisar a mano' : ''),
+  'Dato investigado': r.dato ? `${r.dato}${r.fuente ? ' (' + r.fuente + ')' : ''}` : '',
   'Mensaje conexión': txt('conexion').slice(0, 295),
   'Mensaje 1': m1,
   'Mensaje 2': txt('mensaje2'),
@@ -250,6 +257,11 @@ return { json: {
 } };
 """
 arm = code(w, "Armar mensajes", ARMAR, [w.x + 480, 160], por_item=True)
+investigado = w.node("¿Se investigó?", "n8n-nodes-base.if", 2.2, {
+    "conditions": {"options": {"caseSensitive": True, "leftValue": "", "typeValidation": "loose", "version": 2},
+                   "conditions": [{"id": str(uuid.uuid4()), "leftValue": "={{ $json['Mensaje 1'] }}", "rightValue": "",
+                                   "operator": {"type": "string", "operation": "exists", "singleValue": True}}],
+                   "combinator": "and"}, "options": {}}, [w.x + 600, 160])
 gua = actualizar(w, "Guardar mensajes", [w.x + 720, 160])
 pau = w.node("Pausa (límite Gemini gratis)", "n8n-nodes-base.wait", 1.1, {"amount": 5, "unit": "seconds"},
              [w.x + 960, 160], webhookId=str(uuid.uuid4()))
@@ -277,7 +289,9 @@ const activos = filas.filter(f =>
   String(f['Secuencia'] || '') === 'Activa' && String(f['No contactar'] || '').toUpperCase() !== 'SI' &&
   ['1. Prospecto', '2. Contactado'].includes(f['Etapa']) && String(f['Mensaje 1'] || '').trim());
 
+const sinInvestigar = $getWorkflowStaticData('global').sinInvestigar || [];
 let html = `<div style="font-family:Arial,sans-serif;max-width:680px">`;
+if (sinInvestigar.length) html += `<p style="color:#b00"><b>Gemini falló con ${sinInvestigar.length} lead${sinInvestigar.length === 1 ? '' : 's'}.</b> No se armaron sus mensajes y se reintentan el próximo día: ${esc(sinInvestigar.join(', '))}.</p>`;
 let total = 0;
 for (const [paso, p] of Object.entries(PASOS)) {
   const lista = activos.filter(f => Number(f['Paso LinkedIn'] || 0) === Number(paso) && vence(f));
@@ -317,8 +331,8 @@ if (sinPerfil.length) {
 }
 html += `<p style="color:#888;font-size:12px;margin-top:24px">Los botones funcionan en la PC donde corre n8n. Si cerraste n8n, actualizá la planilla a mano.</p></div>`;
 
-if (!total && !tuyos.length && !sinPerfil.length) return [];
-return [{ json: { asunto: `Prospección de hoy: ${total} mensajes de LinkedIn${tuyos.length ? ` + ${tuyos.length} para responder` : ''}`, html } }];
+if (!total && !tuyos.length && !sinPerfil.length && !sinInvestigar.length) return [];
+return [{ json: { asunto: `Prospección de hoy: ${total} mensajes de LinkedIn${tuyos.length ? ` + ${tuyos.length} para responder` : ''}${sinInvestigar.length ? ` · Gemini falló con ${sinInvestigar.length}` : ''}`, html } }];
 """
 cola = code(w, "Armar cola del día", COLA, [w.x + 480, 440])
 env = mail(w, "Mandar cola por mail", [w.x + 720, 440])
@@ -328,14 +342,17 @@ w.link(loop, l2, out=0)       # salida "done": terminó de investigar
 w.link(loop, es_lead, out=1)  # salida "loop": un lead por vez
 w.link(es_lead, gem, out=0)
 w.link(es_lead, loop, out=1)  # ítem vacío: vuelve directo al loop
-w.chain(gem, arm, gua, pau)
+w.chain(gem, arm, investigado)
+w.link(investigado, gua, out=0)
+w.link(investigado, pau, out=1)  # sin mensajes: no toca la fila
+w.link(gua, pau)
 w.link(pau, loop)
 w.chain(l2, cola, env)
 w.save("01_investigador_cola_linkedin.json",
        "## 01 · Agente investigador + cola diaria\n"
        "1. Completá el nodo **Config** (ID del Sheet, tu email, número de WhatsApp del agente, link de Cal.com, token).\n"
        "2. Credenciales: Google Sheets OAuth2, Gmail OAuth2 y una **Header Auth** para Gemini con nombre `x-goog-api-key` y tu API key de Google AI Studio (gratis).\n"
-       "3. Si Gemini da error 404 o 429, cambiá `geminiModelo` por el modelo gratis vigente en ai.google.dev.\n"
+       "3. Si Gemini falla, el lead no se toca y se reintenta el próximo día; el mail te lo avisa. Un 404 pide cambiar `geminiModelo`; un 402, cargar créditos.\n"
        "4. Activá el workflow. Corre de lunes a viernes a las 8:30.")
 
 # ════════════════════════════════════════════════════════════

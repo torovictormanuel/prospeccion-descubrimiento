@@ -38,14 +38,20 @@ const ok = (c, m) => { console.log((c ? 'OK   ' : 'FAIL ') + m); if (!c) process
   const sinForm = { candidates: [{ content: { parts: [{ text: '{"mensaje1":"Hola, charlemos: {LINK_AGENDA}"}' }] } }] };
   a = await run(F1, 'Armar mensajes', { json: sinForm, nodes: { Config: [cfg], 'Uno por uno': [lead] } });
   ok(a.json['Mensaje 1'].includes(a.json['Link form']), 'si Gemini omite el form, se usa la plantilla con el form');
-  a = await run(F1, 'Armar mensajes', { json: { error: { message: '429' } }, nodes: { Config: [cfg], 'Uno por uno': [lead] } });
-  ok(a.json['Mensaje 1'].includes('No vendo nada') && a.json['Mensaje 1'].includes('form de 4 minutos'), 'Gemini caído → plantilla por defecto con el form');
+  const caida = await run(F1, 'Armar mensajes', { json: { error: { message: '429' } }, nodes: { Config: [cfg], 'Uno por uno': [lead] } });
+  ok(Object.keys(caida.json).length === 1 && caida.json.ID === lead.ID, 'Gemini caído → no escribe mensajes y el lead se reintenta');
+  const rara = await run(F1, 'Armar mensajes', { json: { candidates: [{ content: { parts: [{ text: 'sin json' }] } }] }, nodes: { Config: [cfg], 'Uno por uno': [lead] } });
+  ok(!rara.json['Mensaje 1'], 'respuesta ilegible de Gemini → tampoco gasta el lead');
   ok(a.json['Mensaje conexión'].length <= 295, 'nota de conexión ≤ 295 caracteres');
 
   // 3) Cola del día
   const conMsgs = rows.map(r => r.ID === lead.ID ? { ...r, ...a.json } : r);
   const cola = await run(F1, 'Armar cola del día', { input: conMsgs, nodes: { Config: [cfg] } });
   ok(cola.length === 1 && cola[0].json.html.includes('accion=enviado&paso=1') && cola[0].json.html.includes('t=tok123'), `mail diario: "${cola[0].json.asunto}"`);
+  ok(cola[0].json.asunto.includes('Gemini falló con 2') && cola[0].json.html.includes('se reintentan'), 'el mail avisa los leads sin investigar');
+  const soloFallos = await run(F1, 'Armar cola del día', { input: [], nodes: { Config: [cfg] } });
+  ok(soloFallos.length === 1 && soloFallos[0].json.asunto.includes('Gemini falló'), 'sale el mail aunque Gemini haya fallado con todos');
+  statics[F1].sinInvestigar = [];
   ok(cola[0].json.html.includes('Buscá al socio'), 'incluye tarea de buscar decisores sin perfil');
 
   // 4) Botones del mail
@@ -158,7 +164,8 @@ const ok = (c, m) => { console.log((c ? 'OK   ' : 'FAIL ') + m); if (!c) process
 
   // Una operación que n8n no conoce no da error: la condición queda siempre en falso.
   const VALIDAS = { boolean: ['exists', 'notExists', 'empty', 'notEmpty', 'true', 'false', 'equals', 'notEquals'],
-    number: ['exists', 'notExists', 'empty', 'notEmpty', 'equals', 'notEquals', 'gt', 'lt', 'gte', 'lte'] };
+    number: ['exists', 'notExists', 'empty', 'notEmpty', 'equals', 'notEquals', 'gt', 'lt', 'gte', 'lte'],
+    string: ['exists', 'notExists', 'empty', 'notEmpty', 'equals', 'notEquals', 'contains', 'notContains'] };
   const ifs = fs.readdirSync(wfDir).filter(f => f.endsWith('.json')).flatMap(f => JSON.parse(fs.readFileSync(`${wfDir}/${f}`, 'utf8')).nodes.filter(n => n.type.endsWith('.if')));
   ok(ifs.length > 0 && ifs.every(n => n.parameters.conditions.conditions.every(c => (VALIDAS[c.operator.type] || []).includes(c.operator.operation))), 'nodos IF con operaciones válidas de n8n');
 })().catch(e => { console.log('EXCEPCIÓN', e); process.exitCode = 1; });
