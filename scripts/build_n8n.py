@@ -132,7 +132,7 @@ c = config(w, {
     "miEmail": "vtoro485@gmail.com",
     "waNumero": "5491153371839",
     "calLink": "https://cal.com/victor-toro-sa1hch/descubrimiento",
-    "formUrl": "https://prospeccion-descubrimiento-form.vercel.app",
+    "formUrl": "https://descubrimiento.vercel.app",
     "geminiModelo": "gemini-flash-latest",
     "leadsPorDia": 12,
     "tokenAcciones": "PEGAR_TOKEN_LARGO_ALEATORIO",

@@ -13,7 +13,7 @@
           ]
         }
       },
-      "id": "9f83be2c-5b0f-4a0d-a936-85ecd62be2c4",
+      "id": "95a7bfb8-9151-446a-921c-c082feeb88c1",
       "name": "Lunes a viernes 7:30",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
@@ -28,25 +28,25 @@
         "assignments": {
           "assignments": [
             {
-              "id": "d965e7b9-280f-4507-9b5c-f5594ceedcbd",
+              "id": "c273de3c-cf49-441d-97cb-b1c31b0da064",
               "name": "sheetId",
               "value": "1PuwDTHeZ7BntraREG7Hb5QAeK7ZB_c9w3PnjwZAJ2qA",
               "type": "string"
             },
             {
-              "id": "af208b17-293b-4295-b731-c0a26391d33c",
+              "id": "15ffa89b-ae66-4847-9420-436a6e9d5bee",
               "name": "miEmail",
               "value": "vtoro485@gmail.com",
               "type": "string"
             },
             {
-              "id": "ea1c0627-bb5e-46ae-9afb-1c839a7deaa4",
+              "id": "19593906-2ac8-40ad-87bf-b3ac853ef293",
               "name": "geminiModelo",
               "value": "gemini-flash-latest",
               "type": "string"
             },
             {
-              "id": "2c987e5e-1940-4b2a-bba3-3186f237a162",
+              "id": "d667e8af-dae3-49ff-9a95-142e83b8d4c8",
               "name": "leadsBuscar",
               "value": 10,
               "type": "number"
@@ -55,7 +55,7 @@
         },
         "options": {}
       },
-      "id": "f339f479-5d06-4835-9243-0bda8e739b6e",
+      "id": "9c71f34a-b61a-42da-902d-871a24a08c8a",
       "name": "Config",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
@@ -79,7 +79,7 @@
         },
         "options": {}
       },
-      "id": "1fbe91c2-9f7b-48e3-a79f-9d4ec209b94d",
+      "id": "02cb63b3-e99d-45ed-8417-291d5fee7795",
       "name": "Leer pipeline",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
@@ -94,7 +94,7 @@
       "parameters": {
         "jsCode": "const TZ = 'America/Argentina/Buenos_Aires';\n\n// Arma la búsqueda del día. Rota ciudad y perfil para no repetir siempre los mismos resultados.\nconst cfg = $('Config').first().json;\nconst CIUDADES = ['Buenos Aires', 'CABA', 'Córdoba', 'Rosario', 'Mendoza', 'La Plata', 'Mar del Plata', 'Tucumán', 'Salta', 'Neuquén', 'Santa Fe', 'Bahía Blanca'];\nconst PERFILES = ['socio de estudio contable', 'titular de estudio contable', 'gerente de impuestos en estudio contable', 'responsable de liquidación de sueldos en estudio contable', 'contador público independiente'];\nconst dia = $now.setZone(TZ).ordinal;\nconst ciudad = CIUDADES[dia % CIUDADES.length];\nconst perfil = PERFILES[dia % PERFILES.length];\nconst cantidad = Number(cfg.leadsBuscar) || 10;\nconst prompt = `Buscá en Google perfiles públicos de LinkedIn de contadores en Argentina.\nPerfil buscado: ${perfil}. Zona: ${ciudad}.\nUsá búsquedas como: site:ar.linkedin.com/in \"${perfil}\" ${ciudad}\nQuiero hasta ${cantidad} personas que trabajen hoy como contadores o en un estudio contable.\nReglas:\n- Usá SOLO resultados que hayas visto en la búsqueda. Nunca inventes ni completes una URL, un nombre ni un cargo.\n- La URL tiene que ser de un perfil personal (linkedin.com/in/...), no de una empresa.\n- Si encontrás menos personas, devolvé menos. Si no encontrás ninguna, devolvé la lista vacía.\nDevolvé SOLO un objeto JSON, sin texto extra: {\"leads\":[{\"nombre\":\"\",\"cargo\":\"\",\"empresa\":\"\",\"ubicacion\":\"\",\"linkedin\":\"\"}]}`;\nreturn [{ json: { ciudad, perfil, geminiBody: { contents: [{ role: 'user', parts: [{ text: prompt }] }],\n  tools: [{ google_search: {} }], generationConfig: { temperature: 0.2 } } } }];\n"
       },
-      "id": "9f0b3510-c21c-466d-bdbd-93d742fcde02",
+      "id": "03502b9b-7e8c-4301-a856-d8c454fa04db",
       "name": "Armar búsqueda",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -116,7 +116,7 @@
           "timeout": 120000
         }
       },
-      "id": "a066bf39-b158-409f-afa0-ccfe06afb4be",
+      "id": "fdbe784f-6acc-453f-943a-30c24afaa747",
       "name": "Gemini busca",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -130,7 +130,7 @@
       "parameters": {
         "jsCode": "const TZ = 'America/Argentina/Buenos_Aires';\n\n// Las fechas de la planilla pueden venir como 28/10/2026, 2026-10-28 o número de serie\nconst parseFecha = v => {\n  if (v === undefined || v === null || v === '') return null;\n  const s = String(v).trim();\n  let m = s.match(/^(\\d{1,2})\\/(\\d{1,2})\\/(\\d{4})/);\n  if (m) return DateTime.fromObject({ year: +m[3], month: +m[2], day: +m[1] }, { zone: TZ });\n  m = s.match(/^(\\d{4})-(\\d{2})-(\\d{2})/);\n  if (m) return DateTime.fromObject({ year: +m[1], month: +m[2], day: +m[3] }, { zone: TZ });\n  if (/^\\d+(\\.\\d+)?$/.test(s)) return DateTime.fromObject({ year: 1899, month: 12, day: 30 }, { zone: TZ }).plus({ days: Math.floor(+s) });\n  return null;\n};\nconst esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\\n/g, '<br>');\n// '3. Conversación' → 3. '10. Nutrir' cuenta como 0 para poder reactivar el lead.\nconst numEtapa = e => { const n = parseInt(String(e || '0'), 10) || 0; return n === 10 ? 0 : n; };\n\n// Valida lo que devolvió Gemini y deja solo leads nuevos. Si la búsqueda falló no escribe nada.\nconst cfg = $('Config').first().json;\nconst busqueda = $('Armar búsqueda').first().json;\nconst filas = $('Leer pipeline').all().map(i => i.json).filter(f => f.ID !== undefined && f.ID !== '');\nconst hoy = $now.setZone(TZ).toFormat('yyyy-MM-dd');\nconst slugDe = u => { const m = String(u || '').match(/linkedin\\.com\\/in\\/([^\\/?#\\s]+)/i); if (!m) return ''; try { return decodeURIComponent(m[1]).toLowerCase(); } catch (e) { return m[1].toLowerCase(); } };\nconst norm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();\n\nlet problema = '';\nlet lista = [];\nconst fallo = $json.error ? String($json.error.message || $json.error).slice(0, 200) : '';\nconst parts = $json.candidates?.[0]?.content?.parts || [];\nconst consultas = $json.candidates?.[0]?.groundingMetadata?.webSearchQueries || [];\nif (fallo) problema = `Gemini falló: ${fallo}`;\nelse if (!consultas.length) problema = 'Gemini respondió sin buscar en Google, así que descarté la respuesta.';\nelse {\n  try {\n    const texto = parts.map(p => p.text || '').join('');\n    lista = JSON.parse(texto.slice(texto.indexOf('{'), texto.lastIndexOf('}') + 1)).leads || [];\n  } catch (e) { problema = 'Gemini devolvió un formato que no pude leer.'; }\n}\n\nconst slugs = new Set(filas.map(f => slugDe(f['LinkedIn / Web'])).filter(Boolean));\nconst personas = new Set(filas.map(f => norm(f['Contacto']) + '|' + norm(f['Empresa'])));\nlet maxId = Math.max(0, ...filas.map(f => Number(f.ID) || 0));\nconst nuevos = [];\nlet descartados = 0, repetidos = 0;\nfor (const l of lista) {\n  const slug = slugDe(l.linkedin);\n  const nombre = String(l.nombre || '').trim();\n  const contexto = `${l.cargo || ''} ${l.empresa || ''}`;\n  if (nuevos.length >= (Number(cfg.leadsBuscar) || 10)) break;\n  if (!slug || nombre.split(/\\s+/).length < 2 || !/contad|contab|impuest|estudio|auditor|tribut|sueldos/i.test(contexto)) { descartados++; continue; }\n  const clave = norm(nombre) + '|' + norm(l.empresa);\n  if (slugs.has(slug) || personas.has(clave)) { repetidos++; continue; }\n  slugs.add(slug); personas.add(clave);\n  maxId += 1;\n  nuevos.push({ 'ID': maxId, 'Segmento': 'Estudio contable',\n    'Prioridad': /socio|titular|due[ñn]|director|gerente|fundador/i.test(String(l.cargo)) ? 'Alta' : 'Media',\n    'Empresa': String(l.empresa || '').trim().slice(0, 150) || nombre, 'Contacto': nombre, 'Cargo': String(l.cargo || '').trim().slice(0, 150),\n    'Ubicación': String(l.ubicacion || busqueda.ciudad).trim().slice(0, 100), 'LinkedIn / Web': `https://www.linkedin.com/in/${encodeURI(slug)}/`,\n    'Etapa': '1. Prospecto', 'Toques': 0, 'Secuencia': 'Activa', 'Paso LinkedIn': 0, 'Notas': `Buscador automático ${hoy}: revisar el perfil antes de escribir` });\n}\n\nconst items = nuevos.map(n => `<li>${esc(n['Contacto'])} · ${esc(n['Cargo'])} · ${esc(n['Empresa'])} · <a href=\"${esc(n['LinkedIn / Web'])}\">perfil</a></li>`).join('');\nconst html = `<div style=\"font-family:Arial,sans-serif;max-width:680px\"><p>Búsqueda de hoy: ${esc(busqueda.perfil)} en ${esc(busqueda.ciudad)}.</p>\n${problema ? `<p style=\"color:#b00\"><b>${esc(problema)}</b> No se agregó ningún lead.</p>` : `<p>${nuevos.length} nuevos · ${repetidos} repetidos · ${descartados} descartados.</p><ul>${items}</ul>`}</div>`;\nconst asunto = problema ? 'Buscador de leads: falló la búsqueda' : `Buscador de leads: ${nuevos.length} nuevo${nuevos.length === 1 ? '' : 's'}`;\nreturn [{ json: { nuevos, asunto, html } }];\n"
       },
-      "id": "7975618b-f56b-4524-933f-ba63782da72b",
+      "id": "25d1c68a-dc49-4d64-ab0e-41fe79f57774",
       "name": "Validar leads",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -143,7 +143,7 @@
       "parameters": {
         "jsCode": "return $json.nuevos.map(u => ({ json: u }));"
       },
-      "id": "0f5a483e-546d-48c3-abf4-5474a1ad27f6",
+      "id": "c8b2faf8-8c86-4207-bae2-6e58f89a51ce",
       "name": "Leads nuevos",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -174,7 +174,7 @@
           "cellFormat": "USER_ENTERED"
         }
       },
-      "id": "3c7c5658-0a1f-4df8-a16b-bdc0ede81a76",
+      "id": "26f02ce3-90b8-4f09-a61c-6dd0681c5152",
       "name": "Agregar al pipeline",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
@@ -193,7 +193,7 @@
           "appendAttribution": false
         }
       },
-      "id": "3224bd6b-cb5a-4477-8e1b-586026fa5c1b",
+      "id": "4c225450-aac6-4fd5-bef0-f65efce7fd3b",
       "name": "Avisarme",
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.1,
@@ -208,7 +208,7 @@
         "height": 420,
         "width": 520
       },
-      "id": "72c1122b-bfab-46f6-8a59-4e0389a4f23a",
+      "id": "d3b1474a-51c4-4f82-80e9-151f29c7143d",
       "name": "Nota",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,

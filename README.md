@@ -17,7 +17,7 @@ LinkedIn (semi-automático) ──► Form (Vercel + Supabase) ──► Cal.com
 
 | Qué | Dónde |
 |---|---|
-| Form | https://prospeccion-descubrimiento-form.vercel.app |
+| Form | https://descubrimiento.vercel.app |
 | Agenda (Cal.com, 30 min) | https://cal.com/victor-toro-sa1hch/descubrimiento — event type ID `7696927` |
 | Base de datos | Supabase `prospeccion-descubrimiento` (São Paulo), tabla `respuestas_descubrimiento` |
 | Deploy | Vercel `prospeccion-descubrimiento-form`, raíz `form/`, se publica solo con cada push a `main` |

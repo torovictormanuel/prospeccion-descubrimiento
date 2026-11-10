@@ -87,7 +87,7 @@ El token de *API Setup* vence a las 24 h. Para producción:
 
 App → arriba, cambiá de *Development* a **Live**. Meta pide:
 - **URL de política de privacidad:** usá la del form,
-  `https://prospeccion-descubrimiento-form.vercel.app/privacidad`.
+  `https://descubrimiento.vercel.app/privacidad`.
 - Ícono y categoría de la app.
 
 En modo *Development* solo le contesta a los números de prueba.

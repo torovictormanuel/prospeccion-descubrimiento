@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 100" role="img" aria-label="VT — Victor Toro">
+  <defs><mask id="corte"><rect width="120" height="100" fill="#fff"/><polygon points="64,2 126,2 126,36 112,36 112,98 78,98 78,36 64,36" fill="#000"/></mask></defs>
+  <polygon points="0,8 24,8 42,64 60,8 84,8 54,92 30,92" fill="#0B0B0C" mask="url(#corte)"/>
+  <polygon points="70,8 120,8 120,30 106,30 106,92 84,92 84,30 70,30" fill="#FF5B14"/>
+</svg>
