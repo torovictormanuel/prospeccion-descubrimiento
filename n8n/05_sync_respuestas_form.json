@@ -1,6 +1,6 @@
 {
   "id": "prosp-05",
-  "name": "05 Sync respuestas del form",
+  "name": "05 Sync formularios del embudo",
   "nodes": [
     {
       "parameters": {
@@ -13,7 +13,7 @@
           ]
         }
       },
-      "id": "bd7d3d73-f4ad-47cd-9dcc-7c2510dbc12f",
+      "id": "edad7d58-0ef4-4ef9-8a24-38ddb096bbb3",
       "name": "Cada 15 minutos",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
@@ -28,22 +28,28 @@
         "assignments": {
           "assignments": [
             {
-              "id": "0ee39fa3-ac4f-46a8-8b2d-5b8ba5f6cb3e",
+              "id": "e298f62d-7cac-4c4b-9002-e570608d842c",
               "name": "sheetId",
               "value": "1PuwDTHeZ7BntraREG7Hb5QAeK7ZB_c9w3PnjwZAJ2qA",
               "type": "string"
             },
             {
-              "id": "0f8c622f-c394-42c8-a33a-2df5e4ac9bb7",
+              "id": "19a86948-7e1b-4c9c-ae70-e22e8be6960d",
               "name": "miEmail",
               "value": "vtoro485@gmail.com",
+              "type": "string"
+            },
+            {
+              "id": "9e168eb1-8a0b-4088-a872-899cb91d434a",
+              "name": "embudoUrl",
+              "value": "https://victortoro-web.vercel.app",
               "type": "string"
             }
           ]
         },
         "options": {}
       },
-      "id": "ceaf5d7d-3fea-4fb5-9856-e9c7b06415ab",
+      "id": "2f461d25-e00c-484b-add8-c1c2683136f8",
       "name": "Config",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
@@ -54,9 +60,9 @@
     },
     {
       "parameters": {
-        "jsCode": "\n// Última respuesta ya procesada (solo persiste en ejecuciones automáticas).\nreturn [{ json: { desde_id: $getWorkflowStaticData('global').ultimoId || 0 } }];\n"
+        "jsCode": "\n// Fecha del último formulario ya copiado (solo persiste en ejecuciones automáticas).\nreturn [{ json: { desde: $getWorkflowStaticData('global').desde || '' } }];\n"
       },
-      "id": "f06f3e26-29d0-4593-a2d4-41a1b92c5f50",
+      "id": "e491731d-caad-485a-9b53-da48a15c2611",
       "name": "Cursor",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -67,16 +73,26 @@
     },
     {
       "parameters": {
-        "operation": "getAll",
-        "tableId": "respuestas_descubrimiento",
-        "returnAll": true,
-        "filterType": "string",
-        "filterString": "=id=gt.{{ $json.desde_id }}"
+        "url": "={{ $('Config').first().json.embudoUrl }}/api/embudo",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "desde",
+              "value": "={{ $json.desde }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
       },
-      "id": "8fc5ac6d-e8a0-4e7f-b597-b2caf37fc29a",
-      "name": "Traer respuestas",
-      "type": "n8n-nodes-base.supabase",
-      "typeVersion": 1,
+      "id": "a4abc2c0-be39-41d2-b742-0a70a010841c",
+      "name": "Traer formularios",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
       "position": [
         960,
         300
@@ -97,7 +113,7 @@
         },
         "options": {}
       },
-      "id": "d0ceef84-08be-4931-b395-9028ae34a0b6",
+      "id": "3102db0e-acd3-456c-a82f-894d08b462f9",
       "name": "Leer pipeline",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
@@ -110,10 +126,10 @@
     },
     {
       "parameters": {
-        "jsCode": "const TZ = 'America/Argentina/Buenos_Aires';\n\n// Las fechas de la planilla pueden venir como 28/10/2026, 2026-10-28 o número de serie\nconst parseFecha = v => {\n  if (v === undefined || v === null || v === '') return null;\n  const s = String(v).trim();\n  let m = s.match(/^(\\d{1,2})\\/(\\d{1,2})\\/(\\d{4})/);\n  if (m) return DateTime.fromObject({ year: +m[3], month: +m[2], day: +m[1] }, { zone: TZ });\n  m = s.match(/^(\\d{4})-(\\d{2})-(\\d{2})/);\n  if (m) return DateTime.fromObject({ year: +m[1], month: +m[2], day: +m[3] }, { zone: TZ });\n  if (/^\\d+(\\.\\d+)?$/.test(s)) return DateTime.fromObject({ year: 1899, month: 12, day: 30 }, { zone: TZ }).plus({ days: Math.floor(+s) });\n  return null;\n};\nconst esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\\n/g, '<br>');\n// '3. Conversación' → 3. '10. Nutrir' cuenta como 0 para poder reactivar el lead.\nconst numEtapa = e => { const n = parseInt(String(e || '0'), 10) || 0; return n === 10 ? 0 : n; };\nconst PREG = [{\"id\": \"modalidad\", \"tipo\": \"single\", \"texto\": \"¿Cómo trabajás hoy como contador/a?\", \"opciones\": {\"independiente\": \"Independiente, con mis propios clientes\", \"socio_estudio\": \"Socio/a o titular de un estudio\", \"empleado_estudio\": \"Empleado/a en un estudio contable\", \"empresa\": \"En el área contable de una empresa\", \"combinado\": \"Combino: empleo + clientes propios\"}}, {\"id\": \"tamano\", \"tipo\": \"single\", \"texto\": \"¿Cuántas personas trabajan con vos (tu estudio o tu equipo), contándote?\", \"opciones\": {\"1\": \"Solo yo\", \"2-5\": \"2 a 5\", \"6-10\": \"6 a 10\", \"11-25\": \"11 a 25\", \"26-50\": \"26 a 50\", \"50+\": \"Más de 50\"}}, {\"id\": \"clientes\", \"tipo\": \"single\", \"texto\": \"¿Con cuántos clientes (o empresas) trabajan, más o menos?\", \"opciones\": {\"1\": \"Una sola (la empresa donde trabajo)\", \"<50\": \"Menos de 50\", \"50-150\": \"50 a 150\", \"150-300\": \"150 a 300\", \"300-600\": \"300 a 600\", \"600+\": \"Más de 600\"}}, {\"id\": \"tipo_clientes\", \"tipo\": \"multi\", \"texto\": \"¿Qué tipo de clientes o empresas atienden? Marcá todos los que correspondan.\", \"opciones\": {\"monotributo\": \"Monotributistas\", \"ri_pymes\": \"Responsables inscriptos / pymes\", \"empleadores\": \"Empresas con empleados\", \"sociedades\": \"Sociedades (SA, SRL, SAS)\", \"profesionales\": \"Profesionales / autónomos\", \"agro\": \"Agro\", \"ecommerce\": \"E-commerce / Mercado Libre\"}}, {\"id\": \"tareas_tiempo\", \"tipo\": \"multi\", \"texto\": \"En el último mes, ¿qué tareas les llevaron más tiempo del que deberían? Elegí hasta 3.\", \"opciones\": {\"pedir_documentacion\": \"Pedir y perseguir documentación a clientes\", \"carga_comprobantes\": \"Cargar comprobantes y facturas\", \"conciliaciones\": \"Conciliaciones bancarias\", \"sueldos\": \"Liquidación de sueldos y novedades\", \"vencimientos\": \"Controlar vencimientos de cada cliente\", \"arca\": \"Presentaciones y pagos en ARCA (caídas, VEPs)\", \"consultas\": \"Responder consultas de clientes (WhatsApp, mail)\", \"honorarios\": \"Cobrar honorarios\", \"reportes\": \"Armar reportes o informes para clientes\", \"equipo\": \"Revisar el trabajo del equipo o capacitar\", \"normativa\": \"Actualizarse con cambios normativos\"}}, {\"id\": \"doc_canales\", \"tipo\": \"multi\", \"texto\": \"¿Por dónde les llega la documentación de los clientes?\", \"opciones\": {\"whatsapp\": \"WhatsApp\", \"mail\": \"Mail\", \"papel\": \"Papel / en persona\", \"drive\": \"Drive, Dropbox o carpeta compartida\", \"portal\": \"Portal o sistema propio\", \"arca\": \"La bajamos nosotros de ARCA o del banco\"}}, {\"id\": \"fuera_arca\", \"tipo\": \"multi\", \"texto\": \"¿Qué información NO pueden bajar de ARCA y tienen que pedir o cargar a mano? Marcá todas las que apliquen.\", \"opciones\": {\"novedades_sueldos\": \"Novedades de sueldos (horas extra, ausencias, altas y bajas)\", \"extractos\": \"Extractos bancarios\", \"retenciones_bancos\": \"Retenciones y percepciones de bancos y tarjetas\", \"no_electronicos\": \"Comprobantes no electrónicos (tickets, recibos)\", \"exterior\": \"Servicios o compras del exterior\", \"plataformas\": \"Liquidaciones de Mercado Libre, Mercado Pago u otras plataformas\", \"ninguna\": \"Casi todo sale de ARCA\"}}, {\"id\": \"doc_tarde\", \"tipo\": \"single\", \"texto\": \"El último mes, ¿qué parte de los clientes mandó la documentación tarde o incompleta?\", \"opciones\": {\"casi_nadie\": \"Casi nadie\", \"<25\": \"Menos de 1 de cada 4\", \"25-50\": \"Entre 1 de cada 4 y la mitad\", \">50\": \"Más de la mitad\"}}, {\"id\": \"horas_repetitivas\", \"tipo\": \"single\", \"texto\": \"Sumando a todo el equipo (o solo vos), ¿cuántas horas por semana se van pidiendo y cargando comprobantes, novedades y recordatorios?\", \"opciones\": {\"<5\": \"Menos de 5\", \"5-15\": \"5 a 15\", \"15-30\": \"15 a 30\", \"30+\": \"Más de 30\", \"ns\": \"No sabría decir\"}}, {\"id\": \"sistema\", \"tipo\": \"multi\", \"texto\": \"¿Qué sistema contable usan principalmente? Elegí hasta 3.\", \"opciones\": {\"holistor\": \"Holistor\", \"bejerman\": \"Bejerman\", \"tango\": \"Tango\", \"catedral\": \"Catedral\", \"sos\": \"SOS Contador\", \"xubio\": \"Xubio\", \"contabilium\": \"Contabilium\", \"colppy\": \"Colppy\", \"onvio\": \"Onvio\", \"planillas\": \"Excel o planillas propias\", \"otro\": \"Otro\"}}, {\"id\": \"falla_sistema\", \"tipo\": \"multi\", \"texto\": \"¿En qué no te alcanza tu sistema contable? Elegí hasta 3.\", \"opciones\": {\"recibir_doc\": \"Recibir la documentación del cliente (no tiene portal o nadie lo usa)\", \"faltantes\": \"Saber qué le falta mandar a cada cliente\", \"carga_manual\": \"Evitar cargar a mano lo que llega en PDF, foto o Excel\", \"sueldos\": \"Juntar las novedades de sueldos\", \"bancos\": \"Conciliar bancos y tarjetas\", \"avisos\": \"Avisarle al cliente qué pagar y cuándo\", \"tablero\": \"Ver el estado de todos los clientes y del equipo en un tablero\", \"integracion\": \"Pasar datos entre sistemas (exportar, importar)\", \"alcanza\": \"Me alcanza, no le falta nada importante\"}}, {\"id\": \"control_tareas\", \"tipo\": \"single\", \"texto\": \"¿Con qué controlan las tareas y vencimientos de cada cliente?\", \"opciones\": {\"excel\": \"Excel o Google Sheets\", \"software\": \"Un software (Onvio, Aconpy, Holistor, etc.)\", \"agenda\": \"Agenda o papel\", \"memoria\": \"Cada uno a su manera / de memoria\", \"otro\": \"Otro\"}}, {\"id\": \"dependencia\", \"tipo\": \"single\", \"texto\": \"Si vos (o la persona clave del equipo) te tomás 2 semanas, ¿qué pasa con el trabajo?\", \"opciones\": {\"sigue\": \"Sigue normal\", \"algo\": \"Se frenan algunas cosas\", \"mucho\": \"Se frena mucho\", \"no_puede\": \"No se puede tomar 2 semanas\"}}, {\"id\": \"vencimiento_pasado\", \"tipo\": \"single\", \"texto\": \"¿Cuándo fue la última vez que se pasó un vencimiento o hubo un recargo por algo interno (no del cliente)?\", \"opciones\": {\"mes\": \"Este último mes\", \"trimestre\": \"En los últimos 3 meses\", \"anio\": \"En el último año\", \"nunca\": \"No recuerdo / nunca\"}}, {\"id\": \"honorarios_tarde\", \"tipo\": \"single\", \"texto\": \"¿Qué parte de los clientes paga los honorarios tarde?\", \"opciones\": {\"casi_nadie\": \"Casi nadie\", \"<25\": \"Menos de 1 de cada 4\", \"25-50\": \"Entre 1 de cada 4 y la mitad\", \">50\": \"Más de la mitad\", \"no_aplica\": \"No aplica (trabajo en relación de dependencia)\"}}, {\"id\": \"uso_ia\", \"tipo\": \"single\", \"texto\": \"¿Ya usan IA o automatizaciones en tu trabajo?\", \"opciones\": {\"si\": \"Sí, en algunas tareas\", \"probamos\": \"Probamos y lo dejamos\", \"no_se_como\": \"No, no sabemos por dónde empezar\", \"no_interesa\": \"No, no nos interesa\"}}, {\"id\": \"tarea_eliminar\", \"tipo\": \"text\", \"texto\": \"Si mañana pudieras sacarte de encima UNA tarea de tu trabajo para siempre, ¿cuál sería y por qué?\", \"opciones\": {}}, {\"id\": \"ultima_vez\", \"tipo\": \"text\", \"texto\": \"(Opcional) Contame la última vez que esa tarea salió mal o llevó más de la cuenta.\", \"opciones\": {}}, {\"id\": \"nombre\", \"tipo\": \"short\", \"texto\": \"Nombre y apellido\", \"opciones\": {}}, {\"id\": \"rol\", \"tipo\": \"short\", \"texto\": \"Tu rol\", \"opciones\": {}}, {\"id\": \"estudio\", \"tipo\": \"short\", \"texto\": \"Estudio o empresa (si sos independiente, poné tu nombre)\", \"opciones\": {}}, {\"id\": \"email\", \"tipo\": \"email\", \"texto\": \"Email\", \"opciones\": {}}, {\"id\": \"whatsapp\", \"tipo\": \"tel\", \"texto\": \"WhatsApp (opcional)\", \"opciones\": {}}, {\"id\": \"localidad\", \"tipo\": \"short\", \"texto\": \"Localidad y provincia (opcional)\", \"opciones\": {}}, {\"id\": \"interes_charla\", \"tipo\": \"single\", \"texto\": \"¿Te interesaría una charla de 20-30 minutos para profundizar? Te llevás un diagnóstico con ideas concretas para complementar lo que ya usás, sin costo y sin venta.\", \"opciones\": {\"agendar\": \"Sí, quiero elegir un horario ahora\", \"contactar\": \"Sí, escríbanme para coordinar\", \"ahora_no\": \"Ahora no, gracias\"}}, {\"id\": \"canal\", \"tipo\": \"single\", \"texto\": \"¿Por dónde preferís que te contactemos?\", \"opciones\": {\"whatsapp\": \"WhatsApp\", \"mail\": \"Mail\", \"llamada\": \"Llamada\"}}, {\"id\": \"quiere_informe\", \"tipo\": \"check\", \"texto\": \"Quiero recibir el informe con los resultados de todos los contadores (anónimos).\", \"opciones\": {}}, {\"id\": \"consentimiento\", \"tipo\": \"check\", \"texto\": \"Acepto que usen mis datos solo para esta investigación y para contactarme. Puedo pedir que los borren cuando quiera.\", \"opciones\": {}}];\n\n// Cada respuesta del form actualiza su lead (por código del link o por email),\n// crea filas en Hallazgos y una fila completa en \"Respuestas form\" para analizar patrones.\nconst respuestas = $('Traer respuestas').all().map(i => i.json).filter(r => r.id).sort((a, b) => a.id - b.id);\nconst filas = $('Leer pipeline').all().map(i => i.json).filter(f => f.ID !== undefined && f.ID !== '');\nconst porCodigo = Object.fromEntries(filas.filter(f => f['Código']).map(f => [String(f['Código']), f]));\nconst porEmail = Object.fromEntries(filas.filter(f => f['Email']).map(f => [String(f['Email']).toLowerCase(), f]));\nlet maxId = Math.max(0, ...filas.map(f => Number(f.ID) || 0));\nconst etiqueta = (p, v) => Array.isArray(v) ? v.map(x => p.opciones[x] || x).join(', ') : (p.opciones[v] ?? (v === true ? 'Sí' : v ?? ''));\nconst pregunta = Object.fromEntries(PREG.map(p => [p.id, p]));\n// WhatsApp argentino sin código de país (10 dígitos) → formato internacional para wa.me\nconst normalizarWa = n => { const d = String(n || '').replace(/\\D/g, ''); if (!d) return ''; return '+' + (d.length === 10 ? '549' + d : d); };\n\nconst updates = [], nuevos = [], hallazgos = [], crudas = [], avisos = [];\nfor (const r of respuestas) {\n  const a = r.respuestas || {};\n  const cuando = DateTime.fromISO(r.created_at).setZone(TZ);\n  const fecha = cuando.toFormat('yyyy-MM-dd');\n  let fila = (r.codigo && porCodigo[r.codigo]) || porEmail[String(r.email || '').toLowerCase()] || null;\n  const wa = normalizarWa(r.whatsapp);\n  const interes = r.interes_charla;\n  const seguimiento = {\n    agendar: { etapa: '3. Conversación', prox: 'Esperando que reserve en Cal.com (si en 2 días no reservó, escribirle)', dias: 2 },\n    contactar: { etapa: '3. Conversación', prox: `Responder: coordinar charla por ${({ whatsapp: 'WhatsApp', mail: 'mail', llamada: 'llamada' })[a.canal] || 'mail'}`, dias: 0 },\n    ahora_no: { etapa: '10. Nutrir', prox: 'Mandarle el informe y recontactar', dias: 60 },\n  }[interes] || { etapa: '3. Conversación', prox: 'Revisar respuesta del form', dias: 0 };\n  const dolor = `Form: ${a.tarea_eliminar || ''}`.slice(0, 600);\n\n  if (fila) {\n    const u = { 'ID': fila.ID, 'Secuencia': 'Pausada', 'Canal': 'Form', 'Último contacto': fecha,\n      'Próxima acción': seguimiento.prox, 'Fecha próx. acción': cuando.plus({ days: seguimiento.dias }).toFormat('yyyy-MM-dd'),\n      'Dolor detectado': ((fila['Dolor detectado'] ? fila['Dolor detectado'] + ' | ' : '') + dolor).slice(0, 1500) };\n    const actual = String(fila['Etapa'] || '');\n    if (!/^(8|9)\\./.test(actual) && (seguimiento.etapa.startsWith('10.') ? numEtapa(actual) < 3 : numEtapa(seguimiento.etapa) > numEtapa(actual))) u['Etapa'] = seguimiento.etapa;\n    if (!fila['Email']) u['Email'] = r.email;\n    if (!fila['WhatsApp'] && wa) u['WhatsApp'] = wa;\n    if (!fila['Contacto']) u['Contacto'] = r.nombre;\n    if (!fila['Cargo']) u['Cargo'] = r.rol;\n    updates.push(u);\n  } else {\n    // Llegó alguien que no estaba en la lista (le reenviaron el link): se agrega como lead nuevo\n    maxId += 1;\n    fila = { 'ID': maxId, 'Empresa': r.estudio, 'Contacto': r.nombre };\n    nuevos.push({ 'ID': maxId, 'Segmento': 'Estudio contable', 'Prioridad': 'Alta', 'Empresa': r.estudio, 'Contacto': r.nombre,\n      'Cargo': r.rol, 'Ubicación': a.localidad || '', 'Email': r.email, 'WhatsApp': wa, 'Etapa': seguimiento.etapa,\n      'Canal': 'Form', 'Toques': 0, 'Último contacto': fecha, 'Próxima acción': seguimiento.prox,\n      'Fecha próx. acción': cuando.plus({ days: seguimiento.dias }).toFormat('yyyy-MM-dd'), 'Dolor detectado': dolor,\n      'Secuencia': 'Pausada', 'Paso LinkedIn': 0, 'Código': r.codigo || '', 'Notas': 'Llegó por el form (referido)' });\n  }\n\n  for (const t of a.tareas_tiempo || []) hallazgos.push({ 'Fecha': fecha, 'ID': fila.ID, 'Empresa': r.estudio, 'Contacto': r.nombre,\n    'Tema': pregunta.tareas_tiempo.opciones[t] || t, 'Descripción': 'Marcada en el form como una de las 3 tareas que más tiempo llevan',\n    'Frecuencia': '', 'Impacto': etiqueta(pregunta.horas_repetitivas, a.horas_repetitivas) + ' h/semana en tareas repetitivas',\n    'Herramienta actual': etiqueta(pregunta.control_tareas, a.control_tareas), 'Cita textual': '', 'Fuente': 'Form' });\n  hallazgos.push({ 'Fecha': fecha, 'ID': fila.ID, 'Empresa': r.estudio, 'Contacto': r.nombre, 'Tema': 'Tarea que eliminaría',\n    'Descripción': a.tarea_eliminar || '', 'Frecuencia': '', 'Impacto': '', 'Herramienta actual': '',\n    'Cita textual': a.ultima_vez || '', 'Fuente': 'Form' });\n\n  const cruda = { 'Fecha': fecha, 'ID': fila.ID, 'Código': r.codigo || '', 'Versión': r.version, 'Segundos': r.segundos,\n    'Estudio': r.estudio, 'Nombre': r.nombre, 'Rol': r.rol, 'Email': r.email, 'WhatsApp': wa };\n  for (const p of PREG) if (!['nombre', 'rol', 'estudio', 'email', 'whatsapp', 'consentimiento'].includes(p.id)) cruda[p.id] = etiqueta(p, a[p.id]);\n  crudas.push(cruda);\n\n  const textoInteres = { agendar: '📅 quiere agendar ya', contactar: '💬 quiere que lo contactes', ahora_no: 'ahora no' }[interes] || interes;\n  avisos.push(`<b>${esc(r.nombre)}</b> (${esc(r.rol)}, ${esc(r.estudio)}) completó el form — <b>${textoInteres}</b><br>\n    <span style=\"color:#555\">Tareas: ${esc(etiqueta(pregunta.tareas_tiempo, a.tareas_tiempo))}<br>\n    “${esc(a.tarea_eliminar)}”</span>\n    ${wa ? `<br><a href=\"https://wa.me/${wa.replace('+', '')}\">WhatsApp</a> · ` : '<br>'}<a href=\"mailto:${esc(r.email)}\">${esc(r.email)}</a>\n    ${fila && !nuevos.find(n => n.ID === fila.ID) ? '' : ' · <i>lead nuevo (no estaba en la lista)</i>'}`);\n}\nif (respuestas.length) $getWorkflowStaticData('global').ultimoId = respuestas[respuestas.length - 1].id;\nreturn [{ json: { updates, nuevos, hallazgos, crudas, avisos } }];\n"
+        "jsCode": "const TZ = 'America/Argentina/Buenos_Aires';\n\n// Las fechas de la planilla pueden venir como 28/10/2026, 2026-10-28 o número de serie\nconst parseFecha = v => {\n  if (v === undefined || v === null || v === '') return null;\n  const s = String(v).trim();\n  let m = s.match(/^(\\d{1,2})\\/(\\d{1,2})\\/(\\d{4})/);\n  if (m) return DateTime.fromObject({ year: +m[3], month: +m[2], day: +m[1] }, { zone: TZ });\n  m = s.match(/^(\\d{4})-(\\d{2})-(\\d{2})/);\n  if (m) return DateTime.fromObject({ year: +m[1], month: +m[2], day: +m[3] }, { zone: TZ });\n  if (/^\\d+(\\.\\d+)?$/.test(s)) return DateTime.fromObject({ year: 1899, month: 12, day: 30 }, { zone: TZ }).plus({ days: Math.floor(+s) });\n  return null;\n};\nconst esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\\n/g, '<br>');\n// '3. Conversación' → 3. '10. Nutrir' cuenta como 0 para poder reactivar el lead.\nconst numEtapa = e => { const n = parseInt(String(e || '0'), 10) || 0; return n === 10 ? 0 : n; };\nconst PREG = [{\"id\": \"modalidad\", \"tipo\": \"single\", \"texto\": \"¿Cómo trabajás hoy como contador/a?\", \"opciones\": {\"independiente\": \"Independiente, con mis propios clientes\", \"socio_estudio\": \"Socio/a o titular de un estudio\", \"empleado_estudio\": \"Empleado/a en un estudio contable\", \"empresa\": \"En el área contable de una empresa\", \"combinado\": \"Combino: empleo + clientes propios\"}}, {\"id\": \"tamano\", \"tipo\": \"single\", \"texto\": \"¿Cuántas personas trabajan con vos (tu estudio o tu equipo), contándote?\", \"opciones\": {\"1\": \"Solo yo\", \"2-5\": \"2 a 5\", \"6-10\": \"6 a 10\", \"11-25\": \"11 a 25\", \"26-50\": \"26 a 50\", \"50+\": \"Más de 50\"}}, {\"id\": \"clientes\", \"tipo\": \"single\", \"texto\": \"¿Con cuántos clientes (o empresas) trabajan, más o menos?\", \"opciones\": {\"1\": \"Una sola (la empresa donde trabajo)\", \"<50\": \"Menos de 50\", \"50-150\": \"50 a 150\", \"150-300\": \"150 a 300\", \"300-600\": \"300 a 600\", \"600+\": \"Más de 600\"}}, {\"id\": \"tipo_clientes\", \"tipo\": \"multi\", \"texto\": \"¿Qué tipo de clientes o empresas atienden? Marcá todos los que correspondan.\", \"opciones\": {\"monotributo\": \"Monotributistas\", \"ri_pymes\": \"Responsables inscriptos / pymes\", \"empleadores\": \"Empresas con empleados\", \"sociedades\": \"Sociedades (SA, SRL, SAS)\", \"profesionales\": \"Profesionales / autónomos\", \"agro\": \"Agro\", \"ecommerce\": \"E-commerce / Mercado Libre\"}}, {\"id\": \"tareas_tiempo\", \"tipo\": \"multi\", \"texto\": \"En el último mes, ¿qué tareas les llevaron más tiempo del que deberían? Elegí hasta 3.\", \"opciones\": {\"pedir_documentacion\": \"Pedir y perseguir documentación a clientes\", \"carga_comprobantes\": \"Cargar comprobantes y facturas\", \"conciliaciones\": \"Conciliaciones bancarias\", \"sueldos\": \"Liquidación de sueldos y novedades\", \"vencimientos\": \"Controlar vencimientos de cada cliente\", \"arca\": \"Presentaciones y pagos en ARCA (caídas, VEPs)\", \"consultas\": \"Responder consultas de clientes (WhatsApp, mail)\", \"honorarios\": \"Cobrar honorarios\", \"reportes\": \"Armar reportes o informes para clientes\", \"equipo\": \"Revisar el trabajo del equipo o capacitar\", \"normativa\": \"Actualizarse con cambios normativos\"}}, {\"id\": \"doc_canales\", \"tipo\": \"multi\", \"texto\": \"¿Por dónde les llega la documentación de los clientes?\", \"opciones\": {\"whatsapp\": \"WhatsApp\", \"mail\": \"Mail\", \"papel\": \"Papel / en persona\", \"drive\": \"Drive, Dropbox o carpeta compartida\", \"portal\": \"Portal o sistema propio\", \"arca\": \"La bajamos nosotros de ARCA o del banco\"}}, {\"id\": \"fuera_arca\", \"tipo\": \"multi\", \"texto\": \"¿Qué información NO pueden bajar de ARCA y tienen que pedir o cargar a mano? Marcá todas las que apliquen.\", \"opciones\": {\"novedades_sueldos\": \"Novedades de sueldos (horas extra, ausencias, altas y bajas)\", \"extractos\": \"Extractos bancarios\", \"retenciones_bancos\": \"Retenciones y percepciones de bancos y tarjetas\", \"no_electronicos\": \"Comprobantes no electrónicos (tickets, recibos)\", \"exterior\": \"Servicios o compras del exterior\", \"plataformas\": \"Liquidaciones de Mercado Libre, Mercado Pago u otras plataformas\", \"ninguna\": \"Casi todo sale de ARCA\"}}, {\"id\": \"doc_tarde\", \"tipo\": \"single\", \"texto\": \"El último mes, ¿qué parte de los clientes mandó la documentación tarde o incompleta?\", \"opciones\": {\"casi_nadie\": \"Casi nadie\", \"<25\": \"Menos de 1 de cada 4\", \"25-50\": \"Entre 1 de cada 4 y la mitad\", \">50\": \"Más de la mitad\"}}, {\"id\": \"horas_repetitivas\", \"tipo\": \"single\", \"texto\": \"Sumando a todo el equipo (o solo vos), ¿cuántas horas por semana se van pidiendo y cargando comprobantes, novedades y recordatorios?\", \"opciones\": {\"<5\": \"Menos de 5\", \"5-15\": \"5 a 15\", \"15-30\": \"15 a 30\", \"30+\": \"Más de 30\", \"ns\": \"No sabría decir\"}}, {\"id\": \"sistema\", \"tipo\": \"multi\", \"texto\": \"¿Qué sistema contable usan principalmente? Elegí hasta 3.\", \"opciones\": {\"holistor\": \"Holistor\", \"bejerman\": \"Bejerman\", \"tango\": \"Tango\", \"catedral\": \"Catedral\", \"sos\": \"SOS Contador\", \"xubio\": \"Xubio\", \"contabilium\": \"Contabilium\", \"colppy\": \"Colppy\", \"onvio\": \"Onvio\", \"planillas\": \"Excel o planillas propias\", \"otro\": \"Otro\"}}, {\"id\": \"falla_sistema\", \"tipo\": \"multi\", \"texto\": \"¿En qué no te alcanza tu sistema contable? Elegí hasta 3.\", \"opciones\": {\"recibir_doc\": \"Recibir la documentación del cliente (no tiene portal o nadie lo usa)\", \"faltantes\": \"Saber qué le falta mandar a cada cliente\", \"carga_manual\": \"Evitar cargar a mano lo que llega en PDF, foto o Excel\", \"sueldos\": \"Juntar las novedades de sueldos\", \"bancos\": \"Conciliar bancos y tarjetas\", \"avisos\": \"Avisarle al cliente qué pagar y cuándo\", \"tablero\": \"Ver el estado de todos los clientes y del equipo en un tablero\", \"integracion\": \"Pasar datos entre sistemas (exportar, importar)\", \"alcanza\": \"Me alcanza, no le falta nada importante\"}}, {\"id\": \"control_tareas\", \"tipo\": \"single\", \"texto\": \"¿Con qué controlan las tareas y vencimientos de cada cliente?\", \"opciones\": {\"excel\": \"Excel o Google Sheets\", \"software\": \"Un software (Onvio, Aconpy, Holistor, etc.)\", \"agenda\": \"Agenda o papel\", \"memoria\": \"Cada uno a su manera / de memoria\", \"otro\": \"Otro\"}}, {\"id\": \"dependencia\", \"tipo\": \"single\", \"texto\": \"Si vos (o la persona clave del equipo) te tomás 2 semanas, ¿qué pasa con el trabajo?\", \"opciones\": {\"sigue\": \"Sigue normal\", \"algo\": \"Se frenan algunas cosas\", \"mucho\": \"Se frena mucho\", \"no_puede\": \"No se puede tomar 2 semanas\"}}, {\"id\": \"vencimiento_pasado\", \"tipo\": \"single\", \"texto\": \"¿Cuándo fue la última vez que se pasó un vencimiento o hubo un recargo por algo interno (no del cliente)?\", \"opciones\": {\"mes\": \"Este último mes\", \"trimestre\": \"En los últimos 3 meses\", \"anio\": \"En el último año\", \"nunca\": \"No recuerdo / nunca\"}}, {\"id\": \"honorarios_tarde\", \"tipo\": \"single\", \"texto\": \"¿Qué parte de los clientes paga los honorarios tarde?\", \"opciones\": {\"casi_nadie\": \"Casi nadie\", \"<25\": \"Menos de 1 de cada 4\", \"25-50\": \"Entre 1 de cada 4 y la mitad\", \">50\": \"Más de la mitad\", \"no_aplica\": \"No aplica (trabajo en relación de dependencia)\"}}, {\"id\": \"uso_ia\", \"tipo\": \"single\", \"texto\": \"¿Ya usan IA o automatizaciones en tu trabajo?\", \"opciones\": {\"si\": \"Sí, en algunas tareas\", \"probamos\": \"Probamos y lo dejamos\", \"no_se_como\": \"No, no sabemos por dónde empezar\", \"no_interesa\": \"No, no nos interesa\"}}, {\"id\": \"tarea_eliminar\", \"tipo\": \"text\", \"texto\": \"Si mañana pudieras sacarte de encima UNA tarea de tu trabajo para siempre, ¿cuál sería y por qué?\", \"opciones\": {}}, {\"id\": \"ultima_vez\", \"tipo\": \"text\", \"texto\": \"(Opcional) Contame la última vez que esa tarea salió mal o llevó más de la cuenta.\", \"opciones\": {}}, {\"id\": \"nombre\", \"tipo\": \"short\", \"texto\": \"Nombre y apellido\", \"opciones\": {}}, {\"id\": \"rol\", \"tipo\": \"short\", \"texto\": \"Tu rol\", \"opciones\": {}}, {\"id\": \"estudio\", \"tipo\": \"short\", \"texto\": \"Estudio o empresa (si sos independiente, poné tu nombre)\", \"opciones\": {}}, {\"id\": \"email\", \"tipo\": \"email\", \"texto\": \"Email\", \"opciones\": {}}, {\"id\": \"whatsapp\", \"tipo\": \"tel\", \"texto\": \"WhatsApp (opcional)\", \"opciones\": {}}, {\"id\": \"localidad\", \"tipo\": \"short\", \"texto\": \"Localidad y provincia (opcional)\", \"opciones\": {}}, {\"id\": \"interes_charla\", \"tipo\": \"single\", \"texto\": \"¿Te interesaría una charla de 20-30 minutos para profundizar? Te llevás un diagnóstico con ideas concretas para complementar lo que ya usás, sin costo y sin venta.\", \"opciones\": {\"agendar\": \"Sí, quiero elegir un horario ahora\", \"contactar\": \"Sí, escríbanme para coordinar\", \"ahora_no\": \"Ahora no, gracias\"}}, {\"id\": \"canal\", \"tipo\": \"single\", \"texto\": \"¿Por dónde preferís que te contactemos?\", \"opciones\": {\"whatsapp\": \"WhatsApp\", \"mail\": \"Mail\", \"llamada\": \"Llamada\"}}, {\"id\": \"quiere_informe\", \"tipo\": \"check\", \"texto\": \"Quiero recibir el informe con los resultados de todos los contadores (anónimos).\", \"opciones\": {}}, {\"id\": \"consentimiento\", \"tipo\": \"check\", \"texto\": \"Acepto que usen mis datos solo para esta investigación y para contactarme. Puedo pedir que los borren cuando quiera.\", \"opciones\": {}}];\n\n// Cada formulario del embudo (el de contadores o el de la web) actualiza su lead (por código del link\n// o por email) o crea uno nuevo, con su canal de llegada. Crea filas en Hallazgos y, para el form de\n// contadores, una fila completa en \"Respuestas form\" para analizar patrones.\nconst formularios = ($('Traer formularios').first().json.formularios || []).filter(f => f.id && f.created_at);\nconst filas = $('Leer pipeline').all().map(i => i.json).filter(f => f.ID !== undefined && f.ID !== '');\nconst porCodigo = Object.fromEntries(filas.filter(f => f['Código']).map(f => [String(f['Código']), f]));\nconst porEmail = Object.fromEntries(filas.filter(f => f['Email']).map(f => [String(f['Email']).toLowerCase(), f]));\nlet maxId = Math.max(0, ...filas.map(f => Number(f.ID) || 0));\nconst etiqueta = (p, v) => Array.isArray(v) ? v.map(x => p.opciones[x] || x).join(', ') : (p.opciones[v] ?? (v === true ? 'Sí' : v ?? ''));\nconst pregunta = Object.fromEntries(PREG.map(p => [p.id, p]));\nconst conMas = n => { const d = String(n || '').replace(/\\D/g, ''); return d ? '+' + d : ''; };\nconst NOMBRE_CANAL = { web: 'Web', linkedin: 'LinkedIn', email: 'Email', whatsapp: 'WhatsApp', referido: 'Referido', evento: 'Evento', otro: 'Otro' };\n\nconst updates = [], nuevos = [], hallazgos = [], crudas = [], avisos = [];\nfor (const r of formularios) {\n  const d = r.datos || {};\n  const esWeb = r.formulario !== 'contadores';\n  const a = esWeb ? {} : (d.respuestas || {});\n  const cuando = DateTime.fromISO(r.created_at).setZone(TZ);\n  const fecha = cuando.toFormat('yyyy-MM-dd');\n  const llegada = NOMBRE_CANAL[r.canal_origen] || r.canal_origen || '';\n  const wa = conMas(r.whatsapp);\n  let fila = (d.codigo && porCodigo[d.codigo]) || porEmail[String(r.email || '').toLowerCase()] || null;\n\n  const seguimiento = esWeb ? ({\n    calificado: { etapa: '3. Conversación', prox: 'Esperando que reserve en Cal.com (si en 2 días no reservó, escribirle)', dias: 2, prioridad: 'Alta' },\n    revisar: { etapa: '3. Conversación', prox: 'Responder: escribirle en 48 h (form web)', dias: 0, prioridad: 'Media' },\n    no_calificado: { etapa: '10. Nutrir', prox: 'Mandarle los flujos gratis y recontactar', dias: 60, prioridad: 'Baja' },\n  }[r.calificacion] || { etapa: '3. Conversación', prox: 'Revisar el form web', dias: 0, prioridad: 'Media' }) : ({\n    agendar: { etapa: '3. Conversación', prox: 'Esperando que reserve en Cal.com (si en 2 días no reservó, escribirle)', dias: 2, prioridad: 'Alta' },\n    contactar: { etapa: '3. Conversación', prox: `Responder: coordinar charla por ${({ whatsapp: 'WhatsApp', mail: 'mail', llamada: 'llamada' })[a.canal] || 'mail'}`, dias: 0, prioridad: 'Alta' },\n    ahora_no: { etapa: '10. Nutrir', prox: 'Mandarle el informe y recontactar', dias: 60, prioridad: 'Alta' },\n  }[d.interes_charla] || { etapa: '3. Conversación', prox: 'Revisar respuesta del form', dias: 0, prioridad: 'Alta' });\n  const dolor = (esWeb ? `Form web: ${d.proceso || ''}` : `Form: ${a.tarea_eliminar || ''}`).slice(0, 600);\n  const canalFila = esWeb ? 'Form web' : 'Form';\n\n  if (fila) {\n    const u = { 'ID': fila.ID, 'Secuencia': 'Pausada', 'Canal': canalFila, 'Último contacto': fecha,\n      'Próxima acción': seguimiento.prox, 'Fecha próx. acción': cuando.plus({ days: seguimiento.dias }).toFormat('yyyy-MM-dd'),\n      'Dolor detectado': ((fila['Dolor detectado'] ? fila['Dolor detectado'] + ' | ' : '') + dolor).slice(0, 1500) };\n    const actual = String(fila['Etapa'] || '');\n    if (!/^(8|9)\\./.test(actual) && (seguimiento.etapa.startsWith('10.') ? numEtapa(actual) < 3 : numEtapa(seguimiento.etapa) > numEtapa(actual))) u['Etapa'] = seguimiento.etapa;\n    if (!fila['Canal de llegada'] && llegada) u['Canal de llegada'] = llegada;\n    if (!fila['Email']) u['Email'] = r.email;\n    if (!fila['WhatsApp'] && wa) u['WhatsApp'] = wa;\n    if (!fila['Contacto']) u['Contacto'] = r.nombre;\n    if (!fila['Cargo'] && (r.cargo || r.rol)) u['Cargo'] = r.cargo || r.rol;\n    updates.push(u);\n  } else {\n    // Llegó alguien que no estaba en la lista: se agrega como lead nuevo con su canal de llegada\n    maxId += 1;\n    fila = { 'ID': maxId, 'Empresa': r.empresa, 'Contacto': r.nombre };\n    nuevos.push({ 'ID': maxId, 'Segmento': esWeb ? `Web · ${r.rubro || 'sin rubro'}` : 'Estudio contable', 'Prioridad': seguimiento.prioridad,\n      'Empresa': r.empresa || r.nombre, 'Contacto': r.nombre, 'Cargo': r.cargo || r.rol || '', 'Ubicación': r.ubicacion || '',\n      'LinkedIn / Web': r.web || '', 'Email': r.email, 'WhatsApp': wa, 'Etapa': seguimiento.etapa, 'Canal': canalFila,\n      'Canal de llegada': llegada, 'Toques': 0, 'Último contacto': fecha, 'Próxima acción': seguimiento.prox,\n      'Fecha próx. acción': cuando.plus({ days: seguimiento.dias }).toFormat('yyyy-MM-dd'), 'Dolor detectado': dolor,\n      'Secuencia': 'Pausada', 'Paso LinkedIn': 0, 'Código': d.codigo || '',\n      'Notas': esWeb ? `Llegó por el form de la web (${r.calificacion || 'sin calificar'}${d.origen ? ', ' + d.origen : ''})` : 'Llegó por el form de contadores sin estar en la lista' });\n  }\n\n  if (esWeb) {\n    hallazgos.push({ 'Fecha': fecha, 'ID': fila.ID, 'Empresa': r.empresa, 'Contacto': r.nombre, 'Tema': 'Proceso a automatizar (form web)',\n      'Descripción': d.proceso || '', 'Frecuencia': '', 'Impacto': [d.urgencia && `Urgencia: ${d.urgencia}`, d.presupuesto && `Presupuesto: ${d.presupuesto}`].filter(Boolean).join(' · '),\n      'Herramienta actual': d.herramientas || '', 'Cita textual': '', 'Fuente': 'Form web' });\n  } else {\n    for (const t of a.tareas_tiempo || []) hallazgos.push({ 'Fecha': fecha, 'ID': fila.ID, 'Empresa': r.empresa, 'Contacto': r.nombre,\n      'Tema': pregunta.tareas_tiempo.opciones[t] || t, 'Descripción': 'Marcada en el form como una de las 3 tareas que más tiempo llevan',\n      'Frecuencia': '', 'Impacto': etiqueta(pregunta.horas_repetitivas, a.horas_repetitivas) + ' h/semana en tareas repetitivas',\n      'Herramienta actual': etiqueta(pregunta.control_tareas, a.control_tareas), 'Cita textual': '', 'Fuente': 'Form' });\n    hallazgos.push({ 'Fecha': fecha, 'ID': fila.ID, 'Empresa': r.empresa, 'Contacto': r.nombre, 'Tema': 'Tarea que eliminaría',\n      'Descripción': a.tarea_eliminar || '', 'Frecuencia': '', 'Impacto': '', 'Herramienta actual': '',\n      'Cita textual': a.ultima_vez || '', 'Fuente': 'Form' });\n    const cruda = { 'Fecha': fecha, 'ID': fila.ID, 'Canal': llegada, 'Código': d.codigo || '', 'Versión': d.version || '', 'Segundos': d.segundos ?? '',\n      'Estudio': r.empresa, 'Nombre': r.nombre, 'Rol': r.cargo || '', 'Email': r.email, 'WhatsApp': wa };\n    for (const p of PREG) if (!['nombre', 'rol', 'estudio', 'email', 'whatsapp', 'consentimiento'].includes(p.id)) cruda[p.id] = etiqueta(p, a[p.id]);\n    crudas.push(cruda);\n  }\n\n  const nuevo = !!nuevos.find(n => n.ID === fila.ID);\n  const contacto = `${wa ? `<a href=\"https://wa.me/${wa.replace('+', '')}\">WhatsApp</a> · ` : ''}<a href=\"mailto:${esc(r.email)}\">${esc(r.email)}</a>`;\n  if (esWeb) {\n    avisos.push(`<b>${esc(r.nombre)}</b> (${esc(r.empresa)}) completó el form de la web — <b>${esc(r.calificacion || 'sin calificar')}</b> · llegó por ${esc(llegada)}<br>\n      <span style=\"color:#555\">“${esc(String(d.proceso || '').slice(0, 300))}”</span><br>${contacto}${nuevo ? ' · <i>lead nuevo</i>' : ''}`);\n  } else {\n    const textoInteres = { agendar: '📅 quiere agendar ya', contactar: '💬 quiere que lo contactes', ahora_no: 'ahora no' }[d.interes_charla] || d.interes_charla;\n    avisos.push(`<b>${esc(r.nombre)}</b> (${esc(r.cargo)}, ${esc(r.empresa)}) completó el form de contadores — <b>${textoInteres}</b> · llegó por ${esc(llegada)}<br>\n      <span style=\"color:#555\">Tareas: ${esc(etiqueta(pregunta.tareas_tiempo, a.tareas_tiempo))}<br>“${esc(a.tarea_eliminar)}”</span><br>\n      ${contacto}${nuevo ? ' · <i>lead nuevo (no estaba en la lista)</i>' : ''}`);\n  }\n}\nif (formularios.length) $getWorkflowStaticData('global').desde = formularios[formularios.length - 1].created_at;\nreturn [{ json: { updates, nuevos, hallazgos, crudas, avisos } }];\n"
       },
-      "id": "d6d82e23-b770-4051-888e-3d310667b6dc",
-      "name": "Procesar respuestas",
+      "id": "e7f44b8f-cb9f-41c5-ba9c-9b17c1e62123",
+      "name": "Procesar formularios",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -125,7 +141,7 @@
       "parameters": {
         "jsCode": "return $json.updates.map(u => ({ json: u }));"
       },
-      "id": "3b2fab56-7a34-46c7-a315-09e777f692cb",
+      "id": "03b0a1be-c586-47db-a3f0-481dfa79d08c",
       "name": "Filas a actualizar",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -159,7 +175,7 @@
           "cellFormat": "USER_ENTERED"
         }
       },
-      "id": "053f0c5a-6615-478a-b964-c9a40f696a0b",
+      "id": "ed6e18fc-8fab-485e-bdd9-b762ae5a9123",
       "name": "Actualizar pipeline",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
@@ -172,7 +188,7 @@
       "parameters": {
         "jsCode": "return $json.nuevos.map(u => ({ json: u }));"
       },
-      "id": "a0e71113-7cad-4238-baa5-421e14b7af0a",
+      "id": "de744a71-98e2-40c1-83e7-7a5cae3e1262",
       "name": "Leads nuevos",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -203,7 +219,7 @@
           "cellFormat": "USER_ENTERED"
         }
       },
-      "id": "2dc6ab73-927d-4cb6-9324-d3b8675a6f1d",
+      "id": "d6a33c33-ea2f-4b82-ae72-14c832cb7545",
       "name": "Agregar al pipeline",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
@@ -216,7 +232,7 @@
       "parameters": {
         "jsCode": "return $json.hallazgos.map(h => ({ json: h }));"
       },
-      "id": "84ed5625-06ba-4008-8c6a-e14c793ac5f7",
+      "id": "a834c888-564b-47ca-8bf6-77d866248e48",
       "name": "Hallazgos a cargar",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -247,7 +263,7 @@
           "cellFormat": "USER_ENTERED"
         }
       },
-      "id": "6be28ce5-4ac0-4c9a-b971-3569023a5fd6",
+      "id": "850b6515-3979-42ab-a7fb-bae7dd055938",
       "name": "Cargar hallazgos",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
@@ -260,7 +276,7 @@
       "parameters": {
         "jsCode": "return $json.crudas.map(r => ({ json: r }));"
       },
-      "id": "0e56b78f-faa6-458b-a203-9ec5c3b4c783",
+      "id": "d47f5472-4519-4c85-b12b-59d300b528fb",
       "name": "Respuestas completas",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -291,7 +307,7 @@
           "cellFormat": "USER_ENTERED"
         }
       },
-      "id": "66e88611-48f6-453a-b0ee-1d273ae55b6f",
+      "id": "11660e41-f8e5-408e-9d9a-7775cf2d8c0b",
       "name": "Cargar respuestas",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
@@ -302,9 +318,9 @@
     },
     {
       "parameters": {
-        "jsCode": "\nconst avisos = $json.avisos;\nif (!avisos.length) return [];\nconst html = `<div style=\"font-family:Arial,sans-serif;max-width:680px\"><h3>Nuevas respuestas del form</h3><ul>${avisos.map(a => `<li style=\"margin-bottom:14px\">${a}</li>`).join('')}</ul></div>`;\nreturn [{ json: { asunto: `Form: ${avisos.length} respuesta${avisos.length > 1 ? 's' : ''} nueva${avisos.length > 1 ? 's' : ''}`, html } }];\n"
+        "jsCode": "\nconst avisos = $json.avisos;\nif (!avisos.length) return [];\nconst html = `<div style=\"font-family:Arial,sans-serif;max-width:680px\"><h3>Nuevos formularios</h3><ul>${avisos.map(a => `<li style=\"margin-bottom:14px\">${a}</li>`).join('')}</ul></div>`;\nreturn [{ json: { asunto: `Form: ${avisos.length} respuesta${avisos.length > 1 ? 's' : ''} nueva${avisos.length > 1 ? 's' : ''}`, html } }];\n"
       },
-      "id": "5d7ea484-bede-4a21-bb4c-afde10571d16",
+      "id": "c790198e-d798-4455-9e14-749086b1896f",
       "name": "Armar aviso",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -323,7 +339,7 @@
           "appendAttribution": false
         }
       },
-      "id": "47b8c37b-ff99-4f6d-a8c4-889f8b368a4b",
+      "id": "83053385-1b0a-4aac-b8ef-a711ed493f15",
       "name": "Avisarme",
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.1,
@@ -334,11 +350,11 @@
     },
     {
       "parameters": {
-        "content": "## 05 · Respuestas del form → planilla\n1. **Config**: ID del Sheet y tu email.\n2. Credencial **Supabase API** en *Traer respuestas*: Host = URL del proyecto, Service Role Secret = la service role key (queda cifrada en n8n).\n3. La planilla necesita la hoja **Respuestas form** (ya viene en Pipeline_Ventas.xlsx).\n4. Activá el workflow: el cursor solo se guarda en ejecuciones automáticas.",
+        "content": "## 05 · Formularios del embudo → planilla\nCopia los formularios del embudo unificado (Supabase victortoro-web): el de contadores y el de la web, con su canal de llegada.\n1. **Config**: ID del Sheet, tu email y la URL de la web (`embudoUrl`).\n2. Credencial **Header Auth** en *Traer formularios*: nombre `x-api-key`, valor = `N8N_EMBUDO_SECRET` de la web.\n3. La planilla necesita las columnas **Canal de llegada** (Pipeline) y **Canal** (Respuestas form).\n4. Activá el workflow: el cursor solo se guarda en ejecuciones automáticas.",
         "height": 420,
         "width": 520
       },
-      "id": "ec1b8584-7fad-4678-8a95-23f8f13a0797",
+      "id": "c0555c53-5cf4-498a-91b3-34a2e14259b2",
       "name": "Nota",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
@@ -375,14 +391,14 @@
       "main": [
         [
           {
-            "node": "Traer respuestas",
+            "node": "Traer formularios",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Traer respuestas": {
+    "Traer formularios": {
       "main": [
         [
           {
@@ -397,14 +413,14 @@
       "main": [
         [
           {
-            "node": "Procesar respuestas",
+            "node": "Procesar formularios",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Procesar respuestas": {
+    "Procesar formularios": {
       "main": [
         [
           {

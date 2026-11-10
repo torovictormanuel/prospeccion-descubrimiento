@@ -623,95 +623,120 @@ w.save("04_botones_mail_diario.json",
        "así que funcionan en la PC donde corre n8n.")
 
 # ════════════════════════════════════════════════════════════
-# 05 — Respuestas del form (Supabase) → Pipeline, Hallazgos, Respuestas form
+# 05 — Formularios del embudo unificado (form de contadores + form de la web) → Pipeline, Hallazgos, Respuestas form
 # ════════════════════════════════════════════════════════════
-w = WF("05 Sync respuestas del form")
+w = WF("05 Sync formularios del embudo")
 t = schedule(w, "Cada 15 minutos", {"field": "minutes", "minutesInterval": 15})
-c = config(w, {"sheetId": "1PuwDTHeZ7BntraREG7Hb5QAeK7ZB_c9w3PnjwZAJ2qA", "miEmail": "vtoro485@gmail.com"})
+c = config(w, {"sheetId": "1PuwDTHeZ7BntraREG7Hb5QAeK7ZB_c9w3PnjwZAJ2qA", "miEmail": "vtoro485@gmail.com",
+               "embudoUrl": "https://victortoro-web.vercel.app"})
 cur = code(w, "Cursor", r"""
-// Última respuesta ya procesada (solo persiste en ejecuciones automáticas).
-return [{ json: { desde_id: $getWorkflowStaticData('global').ultimoId || 0 } }];
+// Fecha del último formulario ya copiado (solo persiste en ejecuciones automáticas).
+return [{ json: { desde: $getWorkflowStaticData('global').desde || '' } }];
 """)
-sb = w.node("Traer respuestas", "n8n-nodes-base.supabase", 1, {
-    "operation": "getAll", "tableId": "respuestas_descubrimiento", "returnAll": True,
-    "filterType": "string", "filterString": "=id=gt.{{ $json.desde_id }}",
+sb = w.node("Traer formularios", "n8n-nodes-base.httpRequest", 4.2, {
+    "url": "={{ $('Config').first().json.embudoUrl }}/api/embudo",
+    "authentication": "genericCredentialType", "genericAuthType": "httpHeaderAuth",
+    "sendQuery": True, "queryParameters": {"parameters": [{"name": "desde", "value": "={{ $json.desde }}"}]},
+    "options": {"timeout": 30000},
 })
 lp = leer(w, "Leer pipeline")
 FORM_JS = "const PREG = " + json.dumps(FORM["preguntas"], ensure_ascii=False) + ";\n"
 RESP = TZ_JS + FECHAS_JS + FORM_JS + r"""
-// Cada respuesta del form actualiza su lead (por código del link o por email),
-// crea filas en Hallazgos y una fila completa en "Respuestas form" para analizar patrones.
-const respuestas = $('Traer respuestas').all().map(i => i.json).filter(r => r.id).sort((a, b) => a.id - b.id);
+// Cada formulario del embudo (el de contadores o el de la web) actualiza su lead (por código del link
+// o por email) o crea uno nuevo, con su canal de llegada. Crea filas en Hallazgos y, para el form de
+// contadores, una fila completa en "Respuestas form" para analizar patrones.
+const formularios = ($('Traer formularios').first().json.formularios || []).filter(f => f.id && f.created_at);
 const filas = $('Leer pipeline').all().map(i => i.json).filter(f => f.ID !== undefined && f.ID !== '');
 const porCodigo = Object.fromEntries(filas.filter(f => f['Código']).map(f => [String(f['Código']), f]));
 const porEmail = Object.fromEntries(filas.filter(f => f['Email']).map(f => [String(f['Email']).toLowerCase(), f]));
 let maxId = Math.max(0, ...filas.map(f => Number(f.ID) || 0));
 const etiqueta = (p, v) => Array.isArray(v) ? v.map(x => p.opciones[x] || x).join(', ') : (p.opciones[v] ?? (v === true ? 'Sí' : v ?? ''));
 const pregunta = Object.fromEntries(PREG.map(p => [p.id, p]));
-// WhatsApp argentino sin código de país (10 dígitos) → formato internacional para wa.me
-const normalizarWa = n => { const d = String(n || '').replace(/\D/g, ''); if (!d) return ''; return '+' + (d.length === 10 ? '549' + d : d); };
+const conMas = n => { const d = String(n || '').replace(/\D/g, ''); return d ? '+' + d : ''; };
+const NOMBRE_CANAL = { web: 'Web', linkedin: 'LinkedIn', email: 'Email', whatsapp: 'WhatsApp', referido: 'Referido', evento: 'Evento', otro: 'Otro' };
 
 const updates = [], nuevos = [], hallazgos = [], crudas = [], avisos = [];
-for (const r of respuestas) {
-  const a = r.respuestas || {};
+for (const r of formularios) {
+  const d = r.datos || {};
+  const esWeb = r.formulario !== 'contadores';
+  const a = esWeb ? {} : (d.respuestas || {});
   const cuando = DateTime.fromISO(r.created_at).setZone(TZ);
   const fecha = cuando.toFormat('yyyy-MM-dd');
-  let fila = (r.codigo && porCodigo[r.codigo]) || porEmail[String(r.email || '').toLowerCase()] || null;
-  const wa = normalizarWa(r.whatsapp);
-  const interes = r.interes_charla;
-  const seguimiento = {
-    agendar: { etapa: '3. Conversación', prox: 'Esperando que reserve en Cal.com (si en 2 días no reservó, escribirle)', dias: 2 },
-    contactar: { etapa: '3. Conversación', prox: `Responder: coordinar charla por ${({ whatsapp: 'WhatsApp', mail: 'mail', llamada: 'llamada' })[a.canal] || 'mail'}`, dias: 0 },
-    ahora_no: { etapa: '10. Nutrir', prox: 'Mandarle el informe y recontactar', dias: 60 },
-  }[interes] || { etapa: '3. Conversación', prox: 'Revisar respuesta del form', dias: 0 };
-  const dolor = `Form: ${a.tarea_eliminar || ''}`.slice(0, 600);
+  const llegada = NOMBRE_CANAL[r.canal_origen] || r.canal_origen || '';
+  const wa = conMas(r.whatsapp);
+  let fila = (d.codigo && porCodigo[d.codigo]) || porEmail[String(r.email || '').toLowerCase()] || null;
+
+  const seguimiento = esWeb ? ({
+    calificado: { etapa: '3. Conversación', prox: 'Esperando que reserve en Cal.com (si en 2 días no reservó, escribirle)', dias: 2, prioridad: 'Alta' },
+    revisar: { etapa: '3. Conversación', prox: 'Responder: escribirle en 48 h (form web)', dias: 0, prioridad: 'Media' },
+    no_calificado: { etapa: '10. Nutrir', prox: 'Mandarle los flujos gratis y recontactar', dias: 60, prioridad: 'Baja' },
+  }[r.calificacion] || { etapa: '3. Conversación', prox: 'Revisar el form web', dias: 0, prioridad: 'Media' }) : ({
+    agendar: { etapa: '3. Conversación', prox: 'Esperando que reserve en Cal.com (si en 2 días no reservó, escribirle)', dias: 2, prioridad: 'Alta' },
+    contactar: { etapa: '3. Conversación', prox: `Responder: coordinar charla por ${({ whatsapp: 'WhatsApp', mail: 'mail', llamada: 'llamada' })[a.canal] || 'mail'}`, dias: 0, prioridad: 'Alta' },
+    ahora_no: { etapa: '10. Nutrir', prox: 'Mandarle el informe y recontactar', dias: 60, prioridad: 'Alta' },
+  }[d.interes_charla] || { etapa: '3. Conversación', prox: 'Revisar respuesta del form', dias: 0, prioridad: 'Alta' });
+  const dolor = (esWeb ? `Form web: ${d.proceso || ''}` : `Form: ${a.tarea_eliminar || ''}`).slice(0, 600);
+  const canalFila = esWeb ? 'Form web' : 'Form';
 
   if (fila) {
-    const u = { 'ID': fila.ID, 'Secuencia': 'Pausada', 'Canal': 'Form', 'Último contacto': fecha,
+    const u = { 'ID': fila.ID, 'Secuencia': 'Pausada', 'Canal': canalFila, 'Último contacto': fecha,
       'Próxima acción': seguimiento.prox, 'Fecha próx. acción': cuando.plus({ days: seguimiento.dias }).toFormat('yyyy-MM-dd'),
       'Dolor detectado': ((fila['Dolor detectado'] ? fila['Dolor detectado'] + ' | ' : '') + dolor).slice(0, 1500) };
     const actual = String(fila['Etapa'] || '');
     if (!/^(8|9)\./.test(actual) && (seguimiento.etapa.startsWith('10.') ? numEtapa(actual) < 3 : numEtapa(seguimiento.etapa) > numEtapa(actual))) u['Etapa'] = seguimiento.etapa;
+    if (!fila['Canal de llegada'] && llegada) u['Canal de llegada'] = llegada;
     if (!fila['Email']) u['Email'] = r.email;
     if (!fila['WhatsApp'] && wa) u['WhatsApp'] = wa;
     if (!fila['Contacto']) u['Contacto'] = r.nombre;
-    if (!fila['Cargo']) u['Cargo'] = r.rol;
+    if (!fila['Cargo'] && (r.cargo || r.rol)) u['Cargo'] = r.cargo || r.rol;
     updates.push(u);
   } else {
-    // Llegó alguien que no estaba en la lista (le reenviaron el link): se agrega como lead nuevo
+    // Llegó alguien que no estaba en la lista: se agrega como lead nuevo con su canal de llegada
     maxId += 1;
-    fila = { 'ID': maxId, 'Empresa': r.estudio, 'Contacto': r.nombre };
-    nuevos.push({ 'ID': maxId, 'Segmento': 'Estudio contable', 'Prioridad': 'Alta', 'Empresa': r.estudio, 'Contacto': r.nombre,
-      'Cargo': r.rol, 'Ubicación': a.localidad || '', 'Email': r.email, 'WhatsApp': wa, 'Etapa': seguimiento.etapa,
-      'Canal': 'Form', 'Toques': 0, 'Último contacto': fecha, 'Próxima acción': seguimiento.prox,
+    fila = { 'ID': maxId, 'Empresa': r.empresa, 'Contacto': r.nombre };
+    nuevos.push({ 'ID': maxId, 'Segmento': esWeb ? `Web · ${r.rubro || 'sin rubro'}` : 'Estudio contable', 'Prioridad': seguimiento.prioridad,
+      'Empresa': r.empresa || r.nombre, 'Contacto': r.nombre, 'Cargo': r.cargo || r.rol || '', 'Ubicación': r.ubicacion || '',
+      'LinkedIn / Web': r.web || '', 'Email': r.email, 'WhatsApp': wa, 'Etapa': seguimiento.etapa, 'Canal': canalFila,
+      'Canal de llegada': llegada, 'Toques': 0, 'Último contacto': fecha, 'Próxima acción': seguimiento.prox,
       'Fecha próx. acción': cuando.plus({ days: seguimiento.dias }).toFormat('yyyy-MM-dd'), 'Dolor detectado': dolor,
-      'Secuencia': 'Pausada', 'Paso LinkedIn': 0, 'Código': r.codigo || '', 'Notas': 'Llegó por el form (referido)' });
+      'Secuencia': 'Pausada', 'Paso LinkedIn': 0, 'Código': d.codigo || '',
+      'Notas': esWeb ? `Llegó por el form de la web (${r.calificacion || 'sin calificar'}${d.origen ? ', ' + d.origen : ''})` : 'Llegó por el form de contadores sin estar en la lista' });
   }
 
-  for (const t of a.tareas_tiempo || []) hallazgos.push({ 'Fecha': fecha, 'ID': fila.ID, 'Empresa': r.estudio, 'Contacto': r.nombre,
-    'Tema': pregunta.tareas_tiempo.opciones[t] || t, 'Descripción': 'Marcada en el form como una de las 3 tareas que más tiempo llevan',
-    'Frecuencia': '', 'Impacto': etiqueta(pregunta.horas_repetitivas, a.horas_repetitivas) + ' h/semana en tareas repetitivas',
-    'Herramienta actual': etiqueta(pregunta.control_tareas, a.control_tareas), 'Cita textual': '', 'Fuente': 'Form' });
-  hallazgos.push({ 'Fecha': fecha, 'ID': fila.ID, 'Empresa': r.estudio, 'Contacto': r.nombre, 'Tema': 'Tarea que eliminaría',
-    'Descripción': a.tarea_eliminar || '', 'Frecuencia': '', 'Impacto': '', 'Herramienta actual': '',
-    'Cita textual': a.ultima_vez || '', 'Fuente': 'Form' });
+  if (esWeb) {
+    hallazgos.push({ 'Fecha': fecha, 'ID': fila.ID, 'Empresa': r.empresa, 'Contacto': r.nombre, 'Tema': 'Proceso a automatizar (form web)',
+      'Descripción': d.proceso || '', 'Frecuencia': '', 'Impacto': [d.urgencia && `Urgencia: ${d.urgencia}`, d.presupuesto && `Presupuesto: ${d.presupuesto}`].filter(Boolean).join(' · '),
+      'Herramienta actual': d.herramientas || '', 'Cita textual': '', 'Fuente': 'Form web' });
+  } else {
+    for (const t of a.tareas_tiempo || []) hallazgos.push({ 'Fecha': fecha, 'ID': fila.ID, 'Empresa': r.empresa, 'Contacto': r.nombre,
+      'Tema': pregunta.tareas_tiempo.opciones[t] || t, 'Descripción': 'Marcada en el form como una de las 3 tareas que más tiempo llevan',
+      'Frecuencia': '', 'Impacto': etiqueta(pregunta.horas_repetitivas, a.horas_repetitivas) + ' h/semana en tareas repetitivas',
+      'Herramienta actual': etiqueta(pregunta.control_tareas, a.control_tareas), 'Cita textual': '', 'Fuente': 'Form' });
+    hallazgos.push({ 'Fecha': fecha, 'ID': fila.ID, 'Empresa': r.empresa, 'Contacto': r.nombre, 'Tema': 'Tarea que eliminaría',
+      'Descripción': a.tarea_eliminar || '', 'Frecuencia': '', 'Impacto': '', 'Herramienta actual': '',
+      'Cita textual': a.ultima_vez || '', 'Fuente': 'Form' });
+    const cruda = { 'Fecha': fecha, 'ID': fila.ID, 'Canal': llegada, 'Código': d.codigo || '', 'Versión': d.version || '', 'Segundos': d.segundos ?? '',
+      'Estudio': r.empresa, 'Nombre': r.nombre, 'Rol': r.cargo || '', 'Email': r.email, 'WhatsApp': wa };
+    for (const p of PREG) if (!['nombre', 'rol', 'estudio', 'email', 'whatsapp', 'consentimiento'].includes(p.id)) cruda[p.id] = etiqueta(p, a[p.id]);
+    crudas.push(cruda);
+  }
 
-  const cruda = { 'Fecha': fecha, 'ID': fila.ID, 'Código': r.codigo || '', 'Versión': r.version, 'Segundos': r.segundos,
-    'Estudio': r.estudio, 'Nombre': r.nombre, 'Rol': r.rol, 'Email': r.email, 'WhatsApp': wa };
-  for (const p of PREG) if (!['nombre', 'rol', 'estudio', 'email', 'whatsapp', 'consentimiento'].includes(p.id)) cruda[p.id] = etiqueta(p, a[p.id]);
-  crudas.push(cruda);
-
-  const textoInteres = { agendar: '📅 quiere agendar ya', contactar: '💬 quiere que lo contactes', ahora_no: 'ahora no' }[interes] || interes;
-  avisos.push(`<b>${esc(r.nombre)}</b> (${esc(r.rol)}, ${esc(r.estudio)}) completó el form — <b>${textoInteres}</b><br>
-    <span style="color:#555">Tareas: ${esc(etiqueta(pregunta.tareas_tiempo, a.tareas_tiempo))}<br>
-    “${esc(a.tarea_eliminar)}”</span>
-    ${wa ? `<br><a href="https://wa.me/${wa.replace('+', '')}">WhatsApp</a> · ` : '<br>'}<a href="mailto:${esc(r.email)}">${esc(r.email)}</a>
-    ${fila && !nuevos.find(n => n.ID === fila.ID) ? '' : ' · <i>lead nuevo (no estaba en la lista)</i>'}`);
+  const nuevo = !!nuevos.find(n => n.ID === fila.ID);
+  const contacto = `${wa ? `<a href="https://wa.me/${wa.replace('+', '')}">WhatsApp</a> · ` : ''}<a href="mailto:${esc(r.email)}">${esc(r.email)}</a>`;
+  if (esWeb) {
+    avisos.push(`<b>${esc(r.nombre)}</b> (${esc(r.empresa)}) completó el form de la web — <b>${esc(r.calificacion || 'sin calificar')}</b> · llegó por ${esc(llegada)}<br>
+      <span style="color:#555">“${esc(String(d.proceso || '').slice(0, 300))}”</span><br>${contacto}${nuevo ? ' · <i>lead nuevo</i>' : ''}`);
+  } else {
+    const textoInteres = { agendar: '📅 quiere agendar ya', contactar: '💬 quiere que lo contactes', ahora_no: 'ahora no' }[d.interes_charla] || d.interes_charla;
+    avisos.push(`<b>${esc(r.nombre)}</b> (${esc(r.cargo)}, ${esc(r.empresa)}) completó el form de contadores — <b>${textoInteres}</b> · llegó por ${esc(llegada)}<br>
+      <span style="color:#555">Tareas: ${esc(etiqueta(pregunta.tareas_tiempo, a.tareas_tiempo))}<br>“${esc(a.tarea_eliminar)}”</span><br>
+      ${contacto}${nuevo ? ' · <i>lead nuevo (no estaba en la lista)</i>' : ''}`);
+  }
 }
-if (respuestas.length) $getWorkflowStaticData('global').ultimoId = respuestas[respuestas.length - 1].id;
+if (formularios.length) $getWorkflowStaticData('global').desde = formularios[formularios.length - 1].created_at;
 return [{ json: { updates, nuevos, hallazgos, crudas, avisos } }];
 """
-pr = code(w, "Procesar respuestas", RESP)
+pr = code(w, "Procesar formularios", RESP)
 x0 = w.x
 ramas = [
     (code(w, "Filas a actualizar", "return $json.updates.map(u => ({ json: u }));", [x0 + 240, 60]), actualizar(w, "Actualizar pipeline", [x0 + 480, 60])),
@@ -721,7 +746,7 @@ ramas = [
     (code(w, "Armar aviso", r"""
 const avisos = $json.avisos;
 if (!avisos.length) return [];
-const html = `<div style="font-family:Arial,sans-serif;max-width:680px"><h3>Nuevas respuestas del form</h3><ul>${avisos.map(a => `<li style="margin-bottom:14px">${a}</li>`).join('')}</ul></div>`;
+const html = `<div style="font-family:Arial,sans-serif;max-width:680px"><h3>Nuevos formularios</h3><ul>${avisos.map(a => `<li style="margin-bottom:14px">${a}</li>`).join('')}</ul></div>`;
 return [{ json: { asunto: `Form: ${avisos.length} respuesta${avisos.length > 1 ? 's' : ''} nueva${avisos.length > 1 ? 's' : ''}`, html } }];
 """, [x0 + 240, 700]), mail(w, "Avisarme", [x0 + 480, 700])),
 ]
@@ -730,10 +755,11 @@ for a, b in ramas:
     w.link(pr, a)
     w.link(a, b)
 w.save("05_sync_respuestas_form.json",
-       "## 05 · Respuestas del form → planilla\n"
-       "1. **Config**: ID del Sheet y tu email.\n"
-       "2. Credencial **Supabase API** en *Traer respuestas*: Host = URL del proyecto, Service Role Secret = la service role key (queda cifrada en n8n).\n"
-       "3. La planilla necesita la hoja **Respuestas form** (ya viene en Pipeline_Ventas.xlsx).\n"
+       "## 05 · Formularios del embudo → planilla\n"
+       "Copia los formularios del embudo unificado (Supabase victortoro-web): el de contadores y el de la web, con su canal de llegada.\n"
+       "1. **Config**: ID del Sheet, tu email y la URL de la web (`embudoUrl`).\n"
+       "2. Credencial **Header Auth** en *Traer formularios*: nombre `x-api-key`, valor = `N8N_EMBUDO_SECRET` de la web.\n"
+       "3. La planilla necesita las columnas **Canal de llegada** (Pipeline) y **Canal** (Respuestas form).\n"
        "4. Activá el workflow: el cursor solo se guarda en ejecuciones automáticas.")
 
 # ════════════════════════════════════════════════════════════

@@ -1,6 +1,6 @@
 // Servidor local para probar el form sin Vercel: sirve public/ con los mismos
 // headers de vercel.json y enruta /api/respuesta a la función real.
-// Sin SUPABASE_URL, las respuestas se guardan en respuestas-dev.jsonl.
+// Sin EMBUDO_URL y EMBUDO_SECRET, las respuestas se guardan en respuestas-dev.jsonl.
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";

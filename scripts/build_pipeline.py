@@ -77,9 +77,11 @@ cols = ["ID", "Segmento", "Prioridad", "Empresa", "Contacto", "Cargo", "Ubicaci�
         "Valor ponderado (USD)", "Alerta", "Notas",
         # columnas que escriben los agentes (n8n) — W en adelante
         "Secuencia", "No contactar", "Paso LinkedIn", "Dato investigado", "Mensaje conexión",
-        "Mensaje 1", "Mensaje 2", "Mensaje cierre", "Link WhatsApp", "Link agenda", "Código", "Link form"]
+        "Mensaje 1", "Mensaje 2", "Mensaje cierre", "Link WhatsApp", "Link agenda", "Código", "Link form",
+        # canal por el que llegó al embudo (LinkedIn, Web, …): lo escribe el workflow 05
+        "Canal de llegada"]
 widths = [6, 16, 9, 34, 26, 22, 20, 40, 22, 14, 20, 12, 8, 13, 28, 13, 30, 12, 11, 13, 11, 30,
-          11, 10, 9, 40, 40, 50, 40, 40, 30, 30, 11, 34]
+          11, 10, 9, 40, 40, 50, 40, 40, 30, 30, 11, 34, 16]
 header(pl, 1, cols, widths)
 pl.row_dimensions[1].height = 32
 
@@ -259,8 +261,8 @@ _form = json.loads(subprocess.run(["node", str(Path(__file__).resolve().parent /
 _excluir = {"nombre", "rol", "estudio", "email", "whatsapp", "consentimiento"}
 rf = wb.create_sheet("Respuestas form")
 cols_rf = ["Fecha", "ID", "Código", "Versión", "Segundos", "Estudio", "Nombre", "Rol", "Email", "WhatsApp"] + \
-          [p["id"] for p in _form["preguntas"] if p["id"] not in _excluir]
-header(rf, 1, cols_rf, [12, 6, 11, 11, 9, 28, 22, 18, 26, 16] + [22] * (len(cols_rf) - 10))
+          [p["id"] for p in _form["preguntas"] if p["id"] not in _excluir] + ["Canal"]
+header(rf, 1, cols_rf, [12, 6, 11, 11, 9, 28, 22, 18, 26, 16] + [22] * (len(cols_rf) - 11) + [12])
 rf.freeze_panes = "B2"
 nota_encabezado(rf, "La completa n8n (workflow 05). Ideal para tablas dinámicas o para conectar a Power BI y buscar patrones por tamaño de estudio y tipo de cliente.")
 

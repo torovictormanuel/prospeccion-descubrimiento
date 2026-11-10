@@ -104,27 +104,34 @@ const ok = (c, m) => { console.log((c ? 'OK   ' : 'FAIL ') + m); if (!c) process
     { uid: 'u9', status: 'accepted', start: '2026-11-02T14:00:00Z', attendees: [{ name: 'Ana', email: 'nueva@y.com' }], metadata: { codigo: 'Ab12Cd34' } }] }], 'Leer pipeline': conCodigo } });
   ok(r3[0].json.updates[0]?.ID === lead.ID, 'reserva desde el form vinculada por código');
 
-  // 8) Respuestas del form (workflow 05)
+  // 8) Formularios del embudo unificado (workflow 05): form de contadores y form de la web
   const F5 = '05_sync_respuestas_form.json';
-  const base = { version: '2026-10-v1', fuente: 'linkedin', segundos: 140, rol: 'Socia', created_at: '2026-10-27T15:00:00Z', ip_hash: 'x' };
-  const respAll = [
-    { ...base, id: 7, codigo: 'Ab12Cd34', nombre: 'Ana Pérez', email: 'ana@e.com', whatsapp: '1123456789', estudio: 'Estudio X', interes_charla: 'contactar',
-      respuestas: { tamano: '11-25', tipo_clientes: ['monotributo'], tareas_tiempo: ['pedir_documentacion', 'sueldos'], horas_repetitivas: '15-30', control_tareas: 'excel',
-        tarea_eliminar: 'Perseguir facturas', ultima_vez: 'El mes pasado…', canal: 'whatsapp', interes_charla: 'contactar', quiere_informe: true, consentimiento: true } },
-    { ...base, id: 8, codigo: null, nombre: 'Beto Ruiz', email: 'beto@nuevo.com', whatsapp: null, estudio: 'Estudio Referido', interes_charla: 'ahora_no',
-      respuestas: { tamano: '6-10', tareas_tiempo: ['arca'], tarea_eliminar: 'ARCA', interes_charla: 'ahora_no', consentimiento: true, localidad: 'Rosario' } },
+  const base = { formulario: 'contadores', canal: 'linkedin', canal_origen: 'linkedin', cargo: 'Socia', created_at: '2026-10-27T15:00:00Z' };
+  const forms = [
+    { ...base, id: 'a1', nombre: 'Ana Pérez', email: 'ana@e.com', whatsapp: '5491123456789', empresa: 'Estudio X',
+      datos: { formulario: 'contadores', version: '2026-10-v1', codigo: 'Ab12Cd34', fuente: 'linkedin', segundos: 140, interes_charla: 'contactar',
+        respuestas: { tamano: '11-25', tipo_clientes: ['monotributo'], tareas_tiempo: ['pedir_documentacion', 'sueldos'], horas_repetitivas: '15-30', control_tareas: 'excel',
+          tarea_eliminar: 'Perseguir facturas', ultima_vez: 'El mes pasado…', canal: 'whatsapp', interes_charla: 'contactar', quiere_informe: true } } },
+    { ...base, id: 'a2', created_at: '2026-10-27T16:00:00Z', canal: 'otro', canal_origen: 'otro', nombre: 'Beto Ruiz', email: 'beto@nuevo.com', whatsapp: null, empresa: 'Estudio Referido', ubicacion: 'Rosario',
+      datos: { formulario: 'contadores', codigo: null, interes_charla: 'ahora_no', respuestas: { tamano: '6-10', tareas_tiempo: ['arca'], tarea_eliminar: 'ARCA', interes_charla: 'ahora_no', localidad: 'Rosario' } } },
+    { id: 'w1', created_at: '2026-10-27T17:00:00Z', formulario: 'web', canal: 'web', canal_origen: 'web', nombre: 'Carla Web', email: 'carla@pyme.com', whatsapp: '5491155555555',
+      empresa: 'Pyme Carla', rubro: 'inmobiliaria', rol: 'dueno', calificacion: 'calificado',
+      datos: { proceso: 'Respondemos consultas a mano todo el día', herramientas: 'WhatsApp y Excel', urgencia: 'este_mes', presupuesto: '300_1000', origen: 'hero' } },
   ];
-  const p5 = await run(F5, 'Procesar respuestas', { nodes: { 'Traer respuestas': respAll, 'Leer pipeline': conCodigo } });
+  const p5 = await run(F5, 'Procesar formularios', { nodes: { 'Traer formularios': [{ ok: true, formularios: forms }], 'Leer pipeline': conCodigo } });
   const o = p5[0].json;
   const u5 = o.updates[0];
   ok(u5.ID === lead.ID && u5.Secuencia === 'Pausada' && u5.Etapa === '3. Conversación', 'form vincula por código, pausa la secuencia y sube a Conversación');
   ok(u5['Próxima acción'] === 'Responder: coordinar charla por WhatsApp', 'pidió contacto → aparece como "Responder" en el mail diario');
-  ok(u5.WhatsApp === '+5491123456789', `WhatsApp normalizado: ${u5.WhatsApp}`);
-  ok(o.nuevos.length === 1 && o.nuevos[0].ID === Math.max(...rows.map(r => r.ID)) + 1 && o.nuevos[0].Etapa === '10. Nutrir', 'respuesta sin lead → lead nuevo con ID siguiente, en Nutrir');
-  ok(o.hallazgos.length === 5 && o.hallazgos.some(h => h.Tema === 'Pedir y perseguir documentación a clientes'), 'hallazgos con etiquetas legibles (3 tareas + 2 abiertas)');
-  ok(o.crudas[0].tareas_tiempo === 'Pedir y perseguir documentación a clientes, Liquidación de sueldos y novedades' && !('consentimiento' in o.crudas[0]), 'fila de Respuestas form con etiquetas');
-  ok(o.avisos.length === 2 && o.avisos[1].includes('lead nuevo'), 'avisa ambas respuestas y marca el referido');
-  ok(statics[F5].ultimoId === 8, 'cursor del form guardado');
+  ok(u5.WhatsApp === '+5491123456789' && u5['Canal de llegada'] === 'LinkedIn', `WhatsApp ${u5.WhatsApp} y canal de llegada ${u5['Canal de llegada']}`);
+  const maxPrevio = Math.max(...rows.map(r => r.ID));
+  ok(o.nuevos.length === 2 && o.nuevos[0].ID === maxPrevio + 1 && o.nuevos[0].Etapa === '10. Nutrir', 'contador sin lead → lead nuevo con ID siguiente, en Nutrir');
+  const web = o.nuevos[1];
+  ok(web['Canal de llegada'] === 'Web' && web.Canal === 'Form web' && web.Prioridad === 'Alta' && web.Segmento === 'Web · inmobiliaria', 'lead de la web entra con canal Web y prioridad según calificación');
+  ok(o.hallazgos.length === 6 && o.hallazgos.some(h => h.Tema === 'Pedir y perseguir documentación a clientes') && o.hallazgos.some(h => h.Fuente === 'Form web'), 'hallazgos de los dos forms');
+  ok(o.crudas.length === 2 && o.crudas[0].tareas_tiempo === 'Pedir y perseguir documentación a clientes, Liquidación de sueldos y novedades' && o.crudas[0].Canal === 'LinkedIn', 'Respuestas form solo con contadores, con etiquetas y canal');
+  ok(o.avisos.length === 3 && o.avisos[1].includes('lead nuevo') && o.avisos[2].includes('form de la web'), 'avisa los tres formularios');
+  ok(statics[F5].desde === '2026-10-27T17:00:00Z', 'cursor del embudo guardado');
 
   // 06) Buscador: valida, no duplica y no escribe si la búsqueda falló
   const F6 = '06_buscador_leads.json';

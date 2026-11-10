@@ -9,7 +9,7 @@
         "responseMode": "responseNode",
         "options": {}
       },
-      "id": "8bd4219c-914b-42e6-8bc2-27c0f52bc251",
+      "id": "7ebb70ca-e00f-4c64-aff7-a602105f0f24",
       "name": "Botón del mail",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
@@ -17,7 +17,7 @@
         240,
         300
       ],
-      "webhookId": "08bcbce5-71e4-4c68-bb99-96c6926e98b3"
+      "webhookId": "ab42647d-baf4-4243-a29a-1a22dd5e4324"
     },
     {
       "parameters": {
@@ -25,13 +25,13 @@
         "assignments": {
           "assignments": [
             {
-              "id": "39014708-c244-4bce-9609-0701338af447",
+              "id": "af021fe0-a265-4501-a4f4-579f2cb6077f",
               "name": "sheetId",
               "value": "1PuwDTHeZ7BntraREG7Hb5QAeK7ZB_c9w3PnjwZAJ2qA",
               "type": "string"
             },
             {
-              "id": "5a50b16e-524d-431a-a4bd-6e9e89e2644b",
+              "id": "04c7ada7-ecda-4675-b4a6-757f253c912f",
               "name": "tokenAcciones",
               "value": "PEGAR_TOKEN_LARGO_ALEATORIO",
               "type": "string"
@@ -40,7 +40,7 @@
         },
         "options": {}
       },
-      "id": "38f1fc80-2ec9-4e5c-b8f9-33f84c2de2d4",
+      "id": "bfe1123c-286b-462e-9990-cfe33bd28bd7",
       "name": "Config",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
@@ -64,7 +64,7 @@
         },
         "options": {}
       },
-      "id": "e651ef44-f27c-4d69-9130-c44cb8814a6f",
+      "id": "5a8d9071-b9c9-4cb3-ae89-9cba34a8db2f",
       "name": "Leer pipeline",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
@@ -79,7 +79,7 @@
       "parameters": {
         "jsCode": "const TZ = 'America/Argentina/Buenos_Aires';\n\n// Aplica el botón que tocaste en el mail. El token evita que otro sitio dispare acciones.\nconst cfg = $('Config').first().json;\nconst q = $('Botón del mail').first().json.query || {};\nif (!cfg.tokenAcciones || cfg.tokenAcciones.startsWith('PEGAR') || q.t !== cfg.tokenAcciones) throw new Error('Token inválido');\nconst fila = $input.all().map(i => i.json).find(f => String(f.ID) === String(q.id));\nif (!fila) throw new Error(`No encontré el lead ${q.id}`);\nconst hoy = $now.setZone(TZ);\nconst fmt = d => d.toFormat('yyyy-MM-dd');\nconst u = { 'ID': fila.ID };\n\nswitch (q.accion) {\n  case 'enviado': {\n    const paso = Number(q.paso);\n    if (![1, 2, 3, 4].includes(paso)) throw new Error('Paso inválido');\n    if (Number(fila['Paso LinkedIn'] || 0) >= paso) break;  // doble clic: no se cuenta dos veces\n    const dias = { 1: 3, 2: 4, 3: 6, 4: 7 }[paso];\n    const prox = { 1: 'Ver si aceptó y mandar Mensaje 1', 2: 'Mandar Mensaje 2 si no respondió',\n                   3: 'Mandar mensaje de cierre', 4: 'Sin respuesta: pasar a Nutrir o Perdido' }[paso];\n    Object.assign(u, { 'Paso LinkedIn': paso, 'Toques': Number(fila['Toques'] || 0) + 1, 'Canal': 'LinkedIn',\n      'Etapa': fila['Etapa'] === '1. Prospecto' ? '2. Contactado' : fila['Etapa'],\n      'Último contacto': fmt(hoy), 'Fecha próx. acción': fmt(hoy.plus({ days: dias })), 'Próxima acción': prox });\n    if (paso === 4) u['Secuencia'] = 'Terminada';\n    break;\n  }\n  case 'esperar':\n    Object.assign(u, { 'Fecha próx. acción': fmt(hoy.plus({ days: 3 })), 'Próxima acción': 'Ver si aceptó la solicitud' });\n    break;\n  case 'respondio':\n    Object.assign(u, { 'Etapa': '3. Conversación', 'Secuencia': 'Pausada', 'Último contacto': fmt(hoy),\n      'Próxima acción': 'Responder en LinkedIn y pasarle el link de WhatsApp o de agenda', 'Fecha próx. acción': fmt(hoy) });\n    break;\n  case 'descartar':\n    Object.assign(u, { 'Etapa': '9. Perdido', 'Secuencia': 'Terminada', 'Próxima acción': '', 'Fecha próx. acción': '' });\n    break;\n  default:\n    throw new Error('Acción inválida');\n}\nreturn [{ json: u }];\n"
       },
-      "id": "50c0d8a0-e630-4937-af45-c81c53ece623",
+      "id": "aa74a077-bda4-4d17-afdd-2299428a7b99",
       "name": "Aplicar acción",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -113,7 +113,7 @@
           "cellFormat": "USER_ENTERED"
         }
       },
-      "id": "6f2785b8-7021-42b8-89fb-cf8402016a63",
+      "id": "90a425d5-c8cd-49df-b089-8b583ef57e67",
       "name": "Actualizar pipeline",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
@@ -137,7 +137,7 @@
           }
         }
       },
-      "id": "7e584363-50fd-473c-88fb-4e4bf7579d84",
+      "id": "a56a908b-7070-4a1b-8e16-bddf4172e0f8",
       "name": "Responder",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
@@ -152,7 +152,7 @@
         "height": 420,
         "width": 520
       },
-      "id": "2e73c5d7-3f9c-447a-9d75-e629440d44f2",
+      "id": "7d3f84c1-23ec-40e9-a7e9-03d7f3019481",
       "name": "Nota",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,

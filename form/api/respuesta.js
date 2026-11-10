@@ -48,7 +48,8 @@ export default async function handler(req, res) {
   if (!v.ok) return res.status(422).json({ ok: false, errores: v.errores });
 
   try {
-    await guardarRespuesta(v.datos, ipHash);
+    const estado = await guardarRespuesta(v.datos, ipHash);
+    if (estado === "limite") return res.status(429).json({ ok: false, error: "Demasiados envíos. Probá más tarde." });
   } catch (e) {
     console.error("Error guardando respuesta:", e.message);
     return res.status(503).json({ ok: false, error: "No pudimos guardar tu respuesta. Probá de nuevo en un minuto." });
