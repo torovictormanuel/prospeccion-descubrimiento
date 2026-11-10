@@ -42,13 +42,17 @@ el trabajo pesado; vos solo hacés clic en "enviar".
 3. *Archivo → Configuración → Configuración regional: Argentina* (fechas
    dd/mm/aaaa).
 
-### 2. Supabase (gratis)
-1. Creá un proyecto (región São Paulo, la más cercana).
-2. *SQL Editor* → pegá y ejecutá `supabase/migrations/001_respuestas_descubrimiento.sql`.
-3. *Project Settings → API*: anotá la **URL** y la **service role key**
-   (secreta: solo va en Vercel y en n8n, nunca en el código).
-4. *Database → Backups*: el plan gratis hace un backup diario. Para más
-   seguridad, exportá la tabla a CSV una vez por semana.
+### 2. Base de datos: el embudo unificado
+Las respuestas no van a una base propia: van al embudo de la web personal
+(repo `victortoro-web`, Supabase `victortoro-web`), junto con los leads del
+form de la web, cada uno con su canal de llegada.
+1. En ese repo, aplicá `backend/004_form_contadores.sql` (crea
+   `registrar_form_contadores` y `exportar_formularios`).
+2. En el proyecto de Vercel de la web, cargá dos secretos: `DESCUBRIMIENTO_SECRET`
+   (lo usa este form) y `N8N_EMBUDO_SECRET` (lo usa n8n). Generalos con
+   `node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`.
+3. *Database → Backups*: el plan gratis no incluye backups descargables:
+   exportá las tablas a CSV una vez por semana.
 
 ### 3. Cal.com (gratis)
 1. Creá un evento "Charla de descubrimiento" de 30 min.
@@ -61,10 +65,9 @@ el trabajo pesado; vos solo hacés clic en "enviar".
 2. Probalo en local: `cd form && npm test && npm run dev`.
 3. Desplegalo importando el repo en vercel.com/new, con **Root Directory =
    `form`** y preset *Other*. Cada push a `main` vuelve a publicar.
-4. Conectá Supabase sin copiar claves: vercel.com/marketplace/supabase →
-   *Install* → **Link Existing Supabase Account** → acceso solo a este
-   proyecto → elegí el proyecto de Supabase. Carga `SUPABASE_URL` y
-   `SUPABASE_SECRET_KEY` (entre otras). Las variables entran en el siguiente
+4. En Vercel → *Settings → Environment Variables* cargá `EMBUDO_URL`
+   (`https://victortoro-web.vercel.app`), `EMBUDO_SECRET` (el mismo valor que
+   `DESCUBRIMIENTO_SECRET` de la web) e `IP_HASH_SALT`. Entran en el siguiente
    deploy. Verificalo en `/api/salud`, que tiene que devolver `{"ok":true}`.
 5. Recomendado: en Vercel → *Firewall*, agregá una regla de rate limit para
    `/api/respuesta` (por ejemplo, 20 por minuto por IP).
@@ -103,7 +106,7 @@ los reintenta el próximo día y te lo avisa en el mail.
    | Gemini | Header Auth: `x-goog-api-key` = tu key | 01 · Gemini investiga, 06 · Gemini busca |
    | Agente | Header Auth: `X-API-Key` = `SYNC_API_KEY` del agente | 02 · Traer eventos |
    | Cal.com | Header Auth: `Authorization` = `Bearer cal_live_…` | 03 y 07 · Traer reservas |
-   | Supabase | Supabase API: host + service role key | 05 · Traer respuestas |
+   | Embudo | Header Auth: `x-api-key` = `N8N_EMBUDO_SECRET` de la web | 05 · Traer formularios |
    | WhatsApp | WhatsApp API | 07 · WhatsApp a la persona |
 5. Abrí cada nodo de Google Sheets una vez para que cargue las columnas.
 6. Activá 01, 03, 04, 05, 06 y 07. El **02 queda pausado**, junto con el agente
@@ -135,7 +138,7 @@ reservas recibirían dos recordatorios: antes hay que excluir el evento en ese f
    "4. Reunión agendada".
 7. Probá también "Coordinar por WhatsApp" desde otro celular: Lía no tiene que
    repetirte las preguntas.
-8. Borrá la fila de prueba, la respuesta en Supabase y cancelá la reserva.
+8. Borrá la fila de prueba, el prospecto de prueba en el embudo y cancelá la reserva.
 
 ## Límites y buenas prácticas
 
